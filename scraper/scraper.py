@@ -1,10 +1,11 @@
 from typing import List
 from urllib.parse import quote, urljoin
+from zoneinfo import ZoneInfo
 from bs4 import BeautifulSoup, Tag
 from bs4.element import NavigableString
 from dataclasses import dataclass
 from logging_config import VLR_LOGGER as LOGGER
-from datetime import date
+from datetime import date, datetime
 from enum import Enum
 import requests
 import re
@@ -14,6 +15,7 @@ from scraper.entities import CompletionStatus, VLREvent, VLRSeries
 @dataclass
 class VLRScraperOptions:
     timeout: int = 10
+    local_tz: str = "UTC"
 
 class VLRScraperMode(Enum):
     SERIES=0
@@ -37,6 +39,7 @@ class VLRScraper:
             options = VLRScraperOptions()
 
         self.timeout = options.timeout
+        self.local_tz = options.local_tz
 
         LOGGER.info("Scraper has been successfully created!")
         pass
@@ -106,7 +109,97 @@ class VLRScraper:
         return id
                 
     @staticmethod
-    def _unpack_date_str(date_str: str) -> tuple[str | None, str | None]:
+    def _month_str_to_int(month_str: str) -> int | None:
+        """
+        Convert a 3-letter month abbreviation to an integer (1-12).
+
+        Returns:
+            int: month number if valid
+            None: if invalid input
+        """
+
+        try:
+            return datetime.strptime(month_str[:3], "%b").month
+        except (ValueError, TypeError):
+            return None
+    
+    @staticmethod
+    def _day_str_to_int(day_str: str) -> int | None:
+        # Filter out years
+        if len(day_str) > 2:
+            return None
+
+        try:
+            result = int(day_str)
+            return result
+        except(ValueError, TypeError):
+            return None
+                
+    @staticmethod
+    def _year_str_to_int(year_str: str) -> int | None:
+        try:
+            result = int(year_str)
+            return result
+        except(ValueError, TypeError):
+            return None
+
+    @staticmethod
+    def _try_unpack_date_str(date_str: str) -> tuple[date | None, date | None]:
+
+        # date_str can be in many different forms
+        # MONTH DAY, YEAR - MONTH DAY, YEAR
+        # MONTH DAY - MONTH DAY, YEAR
+        # MONTH DAY - MONTH DAY
+
+        # MONTH DAY - DAY
+        # MONTH DAY - DAY, YEAR
+
+        # Assumptions
+        # 1) At least 1 month will be stated
+        # 2) At Least 1 year will be stated
+        # 3) MONTH will be listed as 3 letter abbreviation always
+        
+        month_ints: list[int] = list()
+        day_ints: list[int] = list()
+        year_ints: list[int] = list()
+
+        split_regex = r"[\s,\-]+"
+        date_parts: list[str] = re.split(split_regex, date_str)
+
+        for date_part in date_parts:
+            month_int = VLRScraper._month_str_to_int(date_part)
+
+            if month_int:
+                month_ints.append(month_int)
+                continue
+
+            day_int = VLRScraper._day_str_to_int(date_part)
+
+            if day_int:
+                day_ints.append(day_int)
+                continue
+            
+            # Has to be year if not a month or day
+            year_int = VLRScraper._year_str_to_int(date_part)
+
+            if year_int:
+                year_ints.append(year_int)
+                continue
+
+        if len(month_ints) > 0 \
+            and len(day_ints) > 0 \
+                and len(year_ints) > 0:
+                    try:
+                        first_date = date(year_ints[0], month_ints[0], day_ints[0])
+                        second_date = date(year_ints[-1], month_ints[-1], day_ints[-1])
+
+                        return first_date, second_date
+                    except(ValueError):
+                        return None, None
+        
+        # LOGGER.debug(date_parts)
+        # LOGGER.debug(f"{date_str}, {day_ints}, {month_ints}, {year_ints}")
+
         return None, None
 
     def scrape_series(self, series_id: int) -> tuple[VLRSeries | None, list[int] | None]:
@@ -148,7 +241,7 @@ class VLRScraper:
         series_status: CompletionStatus
         
         pattern = re.compile(r"upcoming", re.IGNORECASE)
-        upcoming_events_col = soup.find("div", class_="wf-label mod-large mod-upcoming", text=pattern)
+        upcoming_events_col = soup.find("div", class_="wf-label mod-large mod-upcoming")
 
         if not isinstance(upcoming_events_col, Tag):
             # No upcoming events just assume the event is complete
@@ -161,7 +254,7 @@ class VLRScraper:
                 series_status = CompletionStatus.COMPLETED
             else:
                 # Check the event status of the top event
-                top_event_status_tag = next_upcoming_event.findChildren("span", class_="event-item-desc-item-status") # type: ignore
+                top_event_status_tag = next_upcoming_event.findChild("span", class_="event-item-desc-item-status", text=pattern) # type: ignore
 
                 if top_event_status_tag is None:
                     series_status = CompletionStatus.COMPLETED
@@ -316,7 +409,7 @@ class VLRScraper:
                 LOGGER.debug(f"Got date_str {date_str}")
 
         if date_str:
-            date_start, date_end = VLRScraper._unpack_date_str(date_str)
+            date_start, date_end = VLRScraper._try_unpack_date_str(date_str)
         
         # Scrape thumbnail
         thumbnail: str | None = None
