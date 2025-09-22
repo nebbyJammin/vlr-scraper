@@ -1,6 +1,7 @@
 from typing import List
 from urllib.parse import quote, urljoin
-from bs4 import BeautifulSoup, Tag, NavigableString
+from bs4 import BeautifulSoup, Tag
+from bs4.element import NavigableString
 from dataclasses import dataclass
 from logging_config import VLR_LOGGER as LOGGER
 from datetime import date
@@ -31,7 +32,7 @@ class VLRScraper:
         VLRScraperMode.TEAM: "team",
     }
     
-    def __init__(self, options: VLRScraperOptions = None):
+    def __init__(self, options: VLRScraperOptions | None = None):
         if options is None:
             options = VLRScraperOptions()
 
@@ -54,6 +55,7 @@ class VLRScraper:
             LOGGER.error(f"Failed to fetch {url}: {e}")
             return None
 
+    @staticmethod
     def _get_id_from_url(mode: VLRScraperMode, url: str) -> int | None:
         if not isinstance(mode, VLRScraperMode):
             LOGGER.error(f"Invalid scraper mode entered. Mode was of type {mode.__class__}")
@@ -103,13 +105,14 @@ class VLRScraper:
 
         return id
                 
+    @staticmethod
     def _unpack_date_str(date_str: str) -> tuple[str | None, str | None]:
         return None, None
 
-    def scrape_series(self, series_id: int) -> tuple[VLRSeries, list[int]] | None:
+    def scrape_series(self, series_id: int) -> tuple[VLRSeries | None, list[int] | None]:
         if not isinstance(series_id, int):
             LOGGER.error(f"Invalid series ID entered: {series_id}")
-            return None
+            return None, None
 
         url = urljoin(VLRScraper.BASE_URL, f"series/{series_id}")
         LOGGER.info(f"Scraping series with url: {url}")
@@ -117,7 +120,7 @@ class VLRScraper:
 
         # Check if HTML was retrieved successfully
         if html is None:
-            return None
+            return None, None
 
         # Parse HTML
         soup = BeautifulSoup(html, features="lxml")
@@ -128,14 +131,14 @@ class VLRScraper:
 
         if title_tag is None:
             LOGGER.error(f"Could not find title_tag for at {url}")
-            return None
+            return None, None
         else:
             title = title_tag.text.strip()
 
         LOGGER.debug(f"Got title {title}")
 
         # Scrape Description
-        description_tag: Tag | None = title_tag.findNextSibling("div", attrs={ "style": "margin-top: 6px;"})
+        description_tag: Tag | None = title_tag.findNextSibling("div", attrs={ "style": "margin-top: 6px;"}) # type: ignore
         description: str | None = None
 
         if description_tag:
@@ -147,18 +150,18 @@ class VLRScraper:
         pattern = re.compile(r"upcoming", re.IGNORECASE)
         upcoming_events_col = soup.find("div", class_="wf-label mod-large mod-upcoming", text=pattern)
 
-        if upcoming_events_col is None:
+        if not isinstance(upcoming_events_col, Tag):
             # No upcoming events just assume the event is complete
             series_status = CompletionStatus.COMPLETED
         else:
             next_upcoming_event = upcoming_events_col.find_next_sibling()
 
-            if next_upcoming_event is None:
+            if not isinstance(next_upcoming_event, Tag):
                 # No upcoming events just assume the event is complete
                 series_status = CompletionStatus.COMPLETED
             else:
                 # Check the event status of the top event
-                top_event_status_tag = next_upcoming_event.findChild("span", class_="event-item-desc-item-status")
+                top_event_status_tag = next_upcoming_event.findChildren("span", class_="event-item-desc-item-status") # type: ignore
 
                 if top_event_status_tag is None:
                     series_status = CompletionStatus.COMPLETED
@@ -174,16 +177,17 @@ class VLRScraper:
 
 
         # Get list of events categorised under this series
-        events: List[Tag] = soup.findAll("a", class_="wf-card mod-flex event-item")
-        event_ids: List[str] = list()
+        events: List[Tag] = soup.findAll("a", class_="wf-card mod-flex event-item") # type: ignore
+        event_ids: List[int] = list()
 
         for event in events:
             LOGGER.debug(f"Found EVENT HREF {event.get('href')}")
 
-            event_id = VLRScraper._get_id_from_url(VLRScraperMode.EVENT, event.get('href'))
+            event_id = VLRScraper._get_id_from_url(VLRScraperMode.EVENT, event.get('href')) # type: ignore
             LOGGER.debug(f"Found EVENT_ID {event_id}")
 
-            event_ids.append(event_id)
+            if event_id:
+                event_ids.append(event_id)
 
         return VLRSeries(
             vlr_id=series_id,
@@ -193,14 +197,14 @@ class VLRScraper:
         ),\
         event_ids
 
-    def scrape_event(self, event_id: int, series_id: int):
+    def scrape_event(self, event_id: int, series_id: int) -> tuple[VLREvent | None, list[int] | None]:
         if not isinstance(event_id, int):
             LOGGER.error(f"Invalid event ID entered: {event_id}")
-            return None
+            return None, None
         # Series ID is required to return a structurally complete VLREvent object
         if not isinstance(series_id, int):
             LOGGER.error(f"Invalid series ID given: {series_id}")
-            return None
+            return None, None
 
         url = urljoin(VLRScraper.BASE_URL, f"event/{event_id}")
         LOGGER.info(f"Scraping event with url: {url}")
@@ -208,7 +212,7 @@ class VLRScraper:
 
         # Check if HTML was retrieved successfully
         if html is None:
-            return None
+            return None, None
 
         # Parse HTML
         soup = BeautifulSoup(html, features="lxml")
@@ -228,10 +232,10 @@ class VLRScraper:
         # Series ID -> Passed in as arg
 
         # Scrape event name
-        event_title_tag: Tag = soup.find("h1", class_="wf-title")
+        event_title_tag: Tag = soup.find("h1", class_="wf-title") # type: ignore
         if not event_title_tag:
             LOGGER.error(f"Could not find event title tag on event page with url {url}")
-            return None
+            return None, None
         
         event_title: str = event_title_tag.text.strip()
         region_code: str | None = None
@@ -241,7 +245,7 @@ class VLRScraper:
         region_tag = soup.find("i", class_="flag")
 
         if region_tag:
-            region_tag_class_list: list[str] = region_tag.get("class")
+            region_tag_class_list: list[str] = region_tag.get("class") # type: ignore
 
             for class_name in region_tag_class_list:
                 trimmed_name = class_name.strip()
@@ -268,10 +272,10 @@ class VLRScraper:
         tags_container_parent_tag = soup.find("div", class_="event-desc-inner")
 
         if tags_container_parent_tag:
-            tags_container_tag: Tag = tags_container_parent_tag.findChild("div")
+            tags_container_tag: Tag = tags_container_parent_tag.findChild("div") # type: ignore
 
             if tags_container_tag:
-                a_tags: List[Tag] = tags_container_tag.findChildren("a")
+                a_tags: List[Tag] = tags_container_tag.findChildren("a") # type: ignore
 
                 for a_tag in a_tags:
                     tags.append(a_tag.text)
@@ -285,7 +289,7 @@ class VLRScraper:
         prize_label_tag = soup.find("div", class_="event-desc-item-label", text=prize_pattern)
 
         if prize_label_tag:
-            prize_tag: Tag = prize_label_tag.findNextSibling("div")
+            prize_tag: Tag = prize_label_tag.findNextSibling("div") # type: ignore
             if prize_tag:
                 prize_str = prize_tag.text.strip()
                 # Prize + Dates are very weirdly formatted with whitespace for some reason
@@ -299,10 +303,10 @@ class VLRScraper:
         date_end: date | None = None
 
         date_pattern = re.compile(r"dates", re.IGNORECASE)
-        date_label_tag: Tag = soup.find("div", class_="event-desc-item-label", text=date_pattern)
+        date_label_tag = soup.find("div", class_="event-desc-item-label", text=date_pattern)
 
-        if date_label_tag:
-            date_tag: Tag = date_label_tag.findNextSibling("div")
+        if isinstance(date_label_tag, Tag):
+            date_tag: Tag = date_label_tag.findNextSibling("div") # type: ignore
             if date_tag:
                 date_str = date_tag.text.strip()
                 # Prize + Dates are very weirdly formatted with whitespace for some reason
