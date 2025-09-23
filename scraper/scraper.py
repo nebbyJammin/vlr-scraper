@@ -5,17 +5,18 @@ from bs4 import BeautifulSoup, Tag
 from bs4.element import NavigableString
 from dataclasses import dataclass
 from logging_config import VLR_LOGGER as LOGGER
-from datetime import date, datetime
+from datetime import date, datetime, timedelta, timezone
 from enum import Enum
 import requests
 import re
 
-from scraper.entities import CompletionStatus, VLREvent, VLRSeries
+from scraper.entities import CompletionStatus, VLREvent, VLRMatch, VLRSeries
 
 @dataclass
 class VLRScraperOptions:
     timeout: int = 10
     local_tz: str = "UTC"
+    vlr_utc_offset: timedelta = timedelta(hours=4)
 
 class VLRScraperMode(Enum):
     SERIES=0
@@ -40,18 +41,25 @@ class VLRScraper:
 
         self.timeout = options.timeout
         self.local_tz = options.local_tz
+        self.vlr_utc_offset = options.vlr_utc_offset
 
         LOGGER.info("Scraper has been successfully created!")
         pass
 
-    def _fetch_page(self, url: str) -> str | None:
+    def _fetch_page(self, url: str, params: dict[str, str] = {}) -> str | None:
         """Fetch HTML content. Return None if request fails"""
         headers = {
-            "User-Agent": "nebbys-scraper"
+            "User-Agent": (
+                "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
+                "AppleWebKit/537.36 (KHTML, like Gecko) "
+                "Chrome/117.0.0.0 Safari/537.36"
+            )
         }
 
+        headers |= params
+
         try:
-            response = requests.get(url, headers, timeout=self.timeout)
+            response = requests.get(url, timeout=self.timeout, params=headers)
             response.raise_for_status()
             return response.text
         except requests.exceptions.RequestException as e:
@@ -61,14 +69,13 @@ class VLRScraper:
     @staticmethod
     def _get_id_from_url(mode: VLRScraperMode, url: str) -> int | None:
         if not isinstance(mode, VLRScraperMode):
-            LOGGER.error(f"Invalid scraper mode entered. Mode was of type {mode.__class__}")
+            LOGGER.error(f"Invalid scraper mode entered. Mode was of type '{mode.__class__}'")
         if not isinstance(url, str):
-            LOGGER.error(f"Invalid url entered. URL was of type {mode.__class__}")
+            LOGGER.error(f"Invalid url entered. URL was of type '{mode.__class__}'")
         
         url = url.strip()
 
         paths: list[str] = url.split('/')
-        LOGGER.debug(f"Paths found: {paths}")
         
         id: int | None = None
         id_as_string: str
@@ -79,7 +86,7 @@ class VLRScraper:
                     if i < len(paths) - 1:
                         id_as_string = paths[i + 1]
                     else:
-                        LOGGER.error(f"No ID could be extracted from URL {url}")
+                        LOGGER.error(f"No ID could be extracted from URL '{url}'")
                         return None
                 else:
                     # Try to just cast current path as a number
@@ -197,18 +204,15 @@ class VLRScraper:
                     except(ValueError):
                         return None, None
         
-        # LOGGER.debug(date_parts)
-        # LOGGER.debug(f"{date_str}, {day_ints}, {month_ints}, {year_ints}")
-
         return None, None
 
     def scrape_series(self, series_id: int) -> tuple[VLRSeries | None, list[int] | None]:
         if not isinstance(series_id, int):
-            LOGGER.error(f"Invalid series ID entered: {series_id}")
+            LOGGER.error(f"Invalid series ID entered: '{series_id}'")
             return None, None
 
         url = urljoin(VLRScraper.BASE_URL, f"series/{series_id}")
-        LOGGER.info(f"Scraping series with url: {url}")
+        LOGGER.info(f"Scraping series with url '{url}'")
         html = self._fetch_page(url)
 
         # Check if HTML was retrieved successfully
@@ -223,12 +227,10 @@ class VLRScraper:
         title: str
 
         if title_tag is None:
-            LOGGER.error(f"Could not find title_tag for at {url}")
+            LOGGER.error(f"Could not find title_tag at url '{url}'")
             return None, None
         else:
             title = title_tag.text.strip()
-
-        LOGGER.debug(f"Got title {title}")
 
         # Scrape Description
         description_tag: Tag | None = title_tag.findNextSibling("div", attrs={ "style": "margin-top: 6px;"}) # type: ignore
@@ -254,7 +256,7 @@ class VLRScraper:
                 series_status = CompletionStatus.COMPLETED
             else:
                 # Check the event status of the top event
-                top_event_status_tag = next_upcoming_event.findChild("span", class_="event-item-desc-item-status", text=pattern) # type: ignore
+                top_event_status_tag = next_upcoming_event.find("span", class_="event-item-desc-item-status", text=pattern)
 
                 if top_event_status_tag is None:
                     series_status = CompletionStatus.COMPLETED
@@ -274,10 +276,7 @@ class VLRScraper:
         event_ids: List[int] = list()
 
         for event in events:
-            LOGGER.debug(f"Found EVENT HREF {event.get('href')}")
-
             event_id = VLRScraper._get_id_from_url(VLRScraperMode.EVENT, event.get('href')) # type: ignore
-            LOGGER.debug(f"Found EVENT_ID {event_id}")
 
             if event_id:
                 event_ids.append(event_id)
@@ -292,15 +291,15 @@ class VLRScraper:
 
     def scrape_event(self, event_id: int, series_id: int) -> tuple[VLREvent | None, list[int] | None]:
         if not isinstance(event_id, int):
-            LOGGER.error(f"Invalid event ID entered: {event_id}")
+            LOGGER.error(f"Invalid event ID entered: '{event_id}'")
             return None, None
         # Series ID is required to return a structurally complete VLREvent object
         if not isinstance(series_id, int):
-            LOGGER.error(f"Invalid series ID given: {series_id}")
+            LOGGER.error(f"Invalid series ID given: '{series_id}'")
             return None, None
 
         url = urljoin(VLRScraper.BASE_URL, f"event/{event_id}")
-        LOGGER.info(f"Scraping event with url: {url}")
+        LOGGER.info(f"Scraping event with url: '{url}'")
         html = self._fetch_page(url)
 
         # Check if HTML was retrieved successfully
@@ -350,9 +349,6 @@ class VLRScraper:
                     region_long_tag: NavigableString | None = region_tag.nextSibling # Get the next text
                     if region_long_tag:
                         region_long_name = region_long_tag.text.strip()
-
-                    LOGGER.debug(f"Got short region code: {region_code}")
-                    LOGGER.debug(f"Got long region name: {region_long_name}")
                     break
 
         if region_code == '':
@@ -365,15 +361,13 @@ class VLRScraper:
         tags_container_parent_tag = soup.find("div", class_="event-desc-inner")
 
         if tags_container_parent_tag:
-            tags_container_tag: Tag = tags_container_parent_tag.findChild("div") # type: ignore
+            tags_container_tag: Tag = tags_container_parent_tag.findChild("div")
 
             if tags_container_tag:
-                a_tags: List[Tag] = tags_container_tag.findChildren("a") # type: ignore
+                a_tags: List[Tag] = tags_container_tag.findAll("a")
 
                 for a_tag in a_tags:
                     tags.append(a_tag.text)
-
-        LOGGER.debug(f"Got tags {tags}")
 
         # Scrape prize
         prize: str | None = ""
@@ -388,7 +382,6 @@ class VLRScraper:
                 # Prize + Dates are very weirdly formatted with whitespace for some reason
                 whitespace_collapse_regex = r"\s+" # get all whitespace runs
                 prize = re.sub(whitespace_collapse_regex, " ", prize_str).strip()
-                LOGGER.debug(f"Got prize {prize}")
 
         # Scrape date
         date_str: str | None = None
@@ -406,18 +399,28 @@ class VLRScraper:
                 whitespace_collapse_regex = r"\s+" # get all whitespace runs
                 date_str = re.sub(whitespace_collapse_regex, " ", date_str).strip()
 
-                LOGGER.debug(f"Got date_str {date_str}")
-
         if date_str:
             date_start, date_end = VLRScraper._try_unpack_date_str(date_str)
         
         # Scrape thumbnail
+        # TODO: Implement
         thumbnail: str | None = None
+
+        # thumbnail_container = soup.find("div", class_=["wf-avatar", "event-header-thumb"])
+        thumbnail_container = soup.select("div.wf-avatar.event-header-thumb")
+
+        if isinstance(thumbnail_container, Tag):
+            thumbnail_tag = thumbnail_container.find("img")
+
+            if thumbnail_tag:
+                thumbnail = thumbnail_tag.get("src", None)
+        # Scrape completion status + dependent events
+        completion_status, dependent_matches = self.scrape_dependent_matches(event_id)
 
         return VLREvent(
             vlr_id=event_id,
             name=event_title,
-            status=CompletionStatus.UNKNOWN, # TODO NEED TO IMPLEMENT STATUS
+            status=completion_status, # TODO NEED TO IMPLEMENT STATUS
             series_id=series_id, # TODO What if series id is unknown? is that okay
             region=region_code,
             location_long=region_long_name,
@@ -428,11 +431,280 @@ class VLRScraper:
             date_end=date_end,
             thumbnail=thumbnail
         ),\
-        list()
-                
-    def scrape_match(match_id: int):
-        pass
+        dependent_matches
 
+    def scrape_dependent_matches(self, event_id: int) -> tuple[CompletionStatus, list[int]]:
+        """
+        Gets the completion status of an event (by looking at the status of its dependent matches) and returns a list of match ids that correspond to matches belonging to event with event id `event_id`
+
+        Returns
+            `CompletionStatus`, `List[event_id]` - when the completion status can be inferred.  
+            None, None - if the completion status can be inferred OR when an invalid event_id is entered.
+        """
+        if not isinstance(event_id, int):
+            LOGGER.error(f"Invalid event ID entered: '{event_id}'")
+            return None, None
+
+        # Matches are listed on the vlr.gg/event/matches/${event_id}/ endpoint
+        url = urljoin(VLRScraper.BASE_URL, f"event/matches/{event_id}/")
+        params = {
+            "series_id": "all", # Query all matches under all stages
+            "group": "all", # Query all matches under any completion status
+        }
+        LOGGER.info(f"Scraping dependent matches of event '{event_id}' with url '{url}' and params '{params}'")
+
+        html = self._fetch_page(url=url, params=params)
+
+        if html is None:
+            return None, None
+        
+        soup = BeautifulSoup(html, features="lxml")
+
+        # results: List[Tag] = soup.findAll("a", class_=["wf-module-item", "match-item", "mod-color"])
+        results: List[Tag] = soup.select("a.wf-module-item.match-item.mod-color")
+
+        event_completion_status = CompletionStatus.UNKNOWN
+        found_completed_event: bool = False
+        found_live_event: bool = False
+        found_upcoming_event: bool = False
+
+        dependent_match_list: list[int] = []
+
+        # Loop through each match-item. Get completion status + match id from href
+        for result in results:
+            # Completion Status
+
+            # Every match-item should have a div with class name "ml-status"
+            ml_status_tag: Tag = result.find("div", class_="ml-status")
+
+            if not ml_status_tag:
+                continue
+
+            # Parse the text content
+            ml_status = ml_status_tag.text.strip().lower()
+
+            if ml_status == "completed":
+                found_completed_event = True
+            elif ml_status == "live" or ml_status == "ongoing":
+                found_live_event = True
+            elif ml_status == "upcoming":
+                found_upcoming_event = True
+            else:
+                LOGGER.error(f"Found unknown ml_status '{ml_status}' while scraping the dependent matches for event_id '{event_id}'")
+
+            # Match ID from href
+            href = result.get("href")
+            id = VLRScraper._get_id_from_url(VLRScraperMode.MATCH, url=href)
+
+            if id:
+                dependent_match_list.append(id)
+        
+        # Infer completion status of the event from its matches
+        # Case 1: Event is complete -> All match events are complete
+        if found_completed_event and not found_live_event and not found_upcoming_event:
+            # True, False, False
+            event_completion_status = CompletionStatus.COMPLETED
+        # Case 2: Event is ongoing -> Found at least one match complete or live
+        elif (found_completed_event and found_upcoming_event) or found_live_event:
+            # True False True OR * True *
+            event_completion_status = CompletionStatus.ONGOING
+        # Case 3: Event is upcoming -> No completed nor live events
+        elif found_upcoming_event:
+            # * * True
+            CompletionStatus.UPCOMING
+        else:
+            # Somehow no completed, live or completed events were found -> probably no matches listed under this event
+            CompletionStatus.UNKNOWN
+
+        return event_completion_status, dependent_match_list
+                
+                
+    def scrape_match(self, match_id: int, event_id: int) -> tuple[VLRMatch, list[int]]:
+        if not isinstance(event_id, int):
+            LOGGER.error(f"Invalid event id '{event_id}' entered")
+            return None, None
+        if not isinstance(match_id, int):
+            LOGGER.error(f"Invalid match id '{match_id}' entered")
+            return None, None
+
+        url = urljoin(VLRScraper.BASE_URL, f"/{match_id}/")
+        html = self._fetch_page(url)
+
+        if not html:
+            return None, None
+        
+        soup = BeautifulSoup(html, features="lxml")
+        match_card = soup.select_one("div.wf-card.mod-color")
+
+        if not match_card:
+            LOGGER.error(f"Couldn't find match wf-card for match id '{match_id}'")
+            return None, None
+        
+        # Get Stage + Tournament Round name
+
+        stage_name: str
+        tournament_round_name: str
+        stage_round_tag = match_card.find("div", class_="match-header-event-series")
+
+        if not stage_round_tag:
+            LOGGER.error(f"Couldn't find stage/round tag for match id '{match_id}'")
+            return None, None
+        
+        stage_round_str = re.sub(r"\s+", " ", stage_round_tag.text).strip()
+        stage_round_components = stage_round_str.split(":")
+
+        if len(stage_round_components) == 2:
+            stage_name = stage_round_components[0]
+            tournament_round_name = stage_round_components[1]
+        else: 
+            LOGGER.error(f"Unknown number of stage/round components received ({stage_round_components})")
+            return None, None
+        
+        LOGGER.debug(f"Received {stage_name, tournament_round_name}")
+
+        # Get match status + match_score
+
+        match_status: CompletionStatus = CompletionStatus.UNKNOWN
+        score_1: int | None = None
+        score_2: int | None = None
+
+        # We can determine match_status via the presence/absence of
+        #   - div.match-header-vs-placeholder (when the match hasn't happened yet)
+        #   - span.match-header-vs-winner and span.match-header-vs-loser (when the match has completed)
+        #   - span (span with no classnames when the match is live)
+
+        match_header_container = match_card.find("div", class_="match-header-vs-score")
+
+        if not match_header_container:
+            LOGGER.error(f"Could not find the match score container for match id {match_id}")
+        else:
+            match_placeholder_tag = match_header_container.find("div", class_="match-header-vs-placeholder")
+
+            if match_placeholder_tag:
+                match_status = CompletionStatus.UPCOMING
+                score_1 = None
+                score_2 = None
+            else:
+                # Completed match will have one score tag with classname match-header-vs-winner
+                winner_loser_team_tags = match_header_container.findAll("span", class_=["match-header-vs-score-winner", "match-header-vs-score-loser"])
+
+                if len(winner_loser_team_tags) == 2:
+                    match_status = CompletionStatus.COMPLETED
+
+                    score_1_tag, score_2_tag = winner_loser_team_tags
+                    
+                    score_1_str = score_1_tag.text.strip()
+                    score_2_str = score_2_tag.text.strip()
+                    
+                    # LOGGER.debug([score_1_str, score_2_str])
+
+                    try:
+                        score_1 = int(score_1_str)
+                        score_2 = int(score_2_str)
+                    except Exception as e:
+                        LOGGER.error(f"Found scores for game with match id of '{match_id}' but could not parse score as an int (score_1='{score_1_str}', score_2='{score_2_str}')")
+                        return None, None
+                elif len(winner_loser_team_tags) != 0:
+                    LOGGER.error(f"Could not find score of a game that should have a score (match id of '{match_id}').")
+                    return None, None
+                else:
+                    # match_live_tag = match_header_container.find("span", class_=lambda x: x is None) # Ensure we only select span with no class names
+                    match_live_tag = next(
+                        (
+                            t for t in match_header_container.find_all("span") if t.has_attr("class") and not t.get("class")
+                        ),
+                            None)
+
+                    # Score is represented by span with no classnames
+                    if match_live_tag:
+                        match_status = CompletionStatus.ONGOING
+                    else:
+                        LOGGER.error(f"Could not find the match status of match id '{match_id}'")
+                        match_status = CompletionStatus.UNKNOWN
+        
+        # LOGGER.debug(f"Got match status {match_status}")
+        
+        # Get match note
+
+        tournament_note: str | None = None
+        tournament_note_tags = match_card.findAll("div", class_="match-header-vs-note")
+        if len(tournament_note_tags) > 0:
+            tournament_note_tag = tournament_note_tags[-1]
+            tournament_note = re.sub(r"\s+", " ", tournament_note_tag.text).strip()
+        
+        # Get date_start and date_end
+
+        date_start: datetime | None = None
+
+        # div.moment-tz-card has attribute "data-utc-ts" that gives information about the UTC time of the event
+        date_start_tag = match_card.find("div", class_="moment-tz-convert")
+
+        if date_start_tag:
+            date_start_str = date_start_tag.get("data-utc-ts") # Will return something like 2025-09-25 09:00:00
+            if date_start_str:
+                try:
+                    VLR_UTC_OFFSET = timedelta(hours=4) # vlr page gives time meta data in UTC-4
+                    date_start = datetime.strptime(date_start_str, "%Y-%m-%d %H:%M:%S").replace(tzinfo=timezone.utc) + VLR_UTC_OFFSET # add 4 hours to properly convert to UTC time
+                except Exception as e:
+                    LOGGER.error(f"Failed to parse '{date_start_str}' as a datetime object for match id '{match_id}'")
+
+        # LOGGER.debug(f"Got time {date_start}")
+
+        # Get team
+
+        team_1_id: int | None = None
+        team_2_id: int | None = None
+
+        match_header_links: list[Tag] = match_card.findAll("a", class_=["match-header-link"])
+
+        if len(match_header_links) > 2:
+            LOGGER.error(f"More than 2 match header link tags scraped, and therefore, cannot infer the teams involved for match id '{match_id}'")
+            return None, None
+        elif len(match_header_links) == 2:
+            team_1_tag = match_header_links[0]
+            team_2_tag = match_header_links[1]
+
+            team_1_str = team_1_tag.get("href", None)
+            team_2_str = team_2_tag.get("href", None)
+            # LOGGER.debug(f"{team_1_str, team_2_str}")
+
+            try:
+                if team_1_str:
+                    team_1_id = VLRScraper._get_id_from_url(VLRScraperMode.MATCH, team_1_str)
+            except Exception:
+                # LOGGER.debug("failed team 1")
+                team_1_id = None
+                
+            try:
+                if team_2_str:
+                    team_2_id = VLRScraper._get_id_from_url(VLRScraperMode.MATCH, team_2_str)
+            except Exception:
+                # LOGGER.debug("failed team 2")
+                team_2_id = None
+        else:
+            LOGGER.error(f"Not enough match header link tags scraped, and therefore, cannot infer the teams involved for match id '{match_id}'")
+            return None, None
+
+        # score_1: Optional[int]
+        # score_2: Optional[int]
+
+        # return None, None
+        return \
+            VLRMatch(
+                vlr_id=match_id,
+                stage=stage_name,
+                tournament_round=tournament_round_name,
+                tournament_note=tournament_note,
+                status=match_status,
+                date_start=date_start,
+                team_1_id=team_1_id,
+                team_2_id=team_2_id,
+                score_1=score_1,
+                score_2=score_2
+                # score_1=score_1,
+                # score_2=score_2,
+            ), \
+            list()
 
         
         

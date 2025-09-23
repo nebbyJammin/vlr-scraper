@@ -44,12 +44,15 @@ class VLREvent(BaseEntry):
 @dataclass
 class VLRMatch(BaseEntry):
     vlr_id: int
-    name: str
     stage: str
+    tournament_round: str
+    tournament_note: Optional[str]
     status: CompletionStatus
     date_start: Optional[datetime]
+    # team_n_id = None implies a TBD team
     team_1_id: Optional[int]
     team_2_id: Optional[int]
+    # score_n = None implies the game hasn't started yet
     score_1: Optional[int]
     score_2: Optional[int]
 

@@ -18,14 +18,35 @@ def initialise_logger() -> tuple[logging.Logger, logging.Logger]:
 
     # File path
     log_file = os.path.join(LOG_DIR, "scraper.log")
+    error_log_file = os.path.join(LOG_DIR, "error.log")
 
-    # Create rotating file handler
+    # --- Handlers ---
+    # Create rotating file handler (all levels)
     file_handler = TimedRotatingFileHandler(
         filename=log_file,
         when="midnight",
         backupCount=LOG_RETENTION,
         encoding="utf-8",
     )
+    file_handler.setLevel(LOG_LEVEL)
+
+    # Create error rotating log (only ERROR and above)
+    error_handler = TimedRotatingFileHandler(
+        filename=error_log_file,
+        when="midnight",
+        backupCount=LOG_RETENTION,
+        encoding="utf-8",
+    )
+    error_handler.setLevel("ERROR")
+
+    # Stream handler (console)
+    stream_handler = logging.StreamHandler()
+    stream_handler.setLevel(LOG_LEVEL)
+
+    # --- Formatter ---
+    formatter = logging.Formatter("%(asctime)s [%(levelname)s] %(name)s: %(message)s")
+    for h in (file_handler, error_handler, stream_handler):
+        h.setFormatter(formatter)
         
     # Configure logger
     logging.basicConfig(
@@ -33,12 +54,15 @@ def initialise_logger() -> tuple[logging.Logger, logging.Logger]:
         format="%(asctime)s [%(levelname)s] %(name)s: %(message)s",
         handlers=[
             file_handler,
-            logging.StreamHandler()
+            stream_handler,
         ]
     )
 
     MAIN_LOGGER = logging.getLogger("Main")
     VLR_LOGGER = logging.getLogger("VLR Scraper")
+
+    # TODO: Remove -> Silent noisy library
+    logging.getLogger("urllib3.connectionpool").setLevel(logging.WARNING)
 
     return MAIN_LOGGER, VLR_LOGGER
 
