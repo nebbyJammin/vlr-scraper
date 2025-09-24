@@ -4,7 +4,7 @@ from logging.handlers import TimedRotatingFileHandler
 import os
 from dotenv import load_dotenv
 
-def initialise_logger() -> tuple[logging.Logger, logging.Logger]:
+def initialise_logger() -> tuple[logging.Logger, logging.Logger, logging.Logger]:
     # Load variables from .env
     load_dotenv()
 

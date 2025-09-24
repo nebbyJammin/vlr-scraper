@@ -1,6 +1,7 @@
 import os
 from psycopg2 import pool
 from psycopg2.pool import ThreadedConnectionPool
+from psycopg2.extensions import connection
 from logging_config import PG_LOGGER as LOGGER
 
 class PostgresPool:
@@ -20,7 +21,7 @@ class PostgresPool:
         DB_USER=os.getenv("DB_USER", "myuser")
         DB_PASSWORD=os.getenv("DB_PASSWORD", "mypassword")
 
-        self._pool = ThreadedConnectionPool(
+        self._pool: ThreadedConnectionPool = ThreadedConnectionPool(
             minconn=1,
             maxconn=10,
             user=DB_USER,
@@ -32,7 +33,7 @@ class PostgresPool:
 
         LOGGER.info("Successfully created PostgresPool object")
     
-    def get_conn(self):
+    def get_conn(self) -> connection:
         """Get a connection from the pool"""
         return self._pool.getconn()
     

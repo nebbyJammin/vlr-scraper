@@ -31,7 +31,7 @@ class VLREvent(BaseEntry):
     vlr_id: int
     name: str
     status: CompletionStatus
-    series_id: Optional[int]
+    series_id: int
     region: Optional[str]
     location_long: Optional[str]
     tags: list[str]

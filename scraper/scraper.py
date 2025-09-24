@@ -132,7 +132,7 @@ class VLRScraper:
             vlr_id=event_id,
             name=event_title,
             status=completion_status,
-            series_id=series_id, # TODO: What if series id is unknown? is that okay
+            series_id=series_id,
             region=region_code,
             location_long=region_long_name,
             tags=tags,
