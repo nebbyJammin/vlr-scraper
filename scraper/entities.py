@@ -1,5 +1,5 @@
 from dataclasses import asdict, dataclass
-from typing import Optional
+from typing import List, Optional
 from datetime import date, datetime
 from enum import Enum
 
@@ -61,11 +61,8 @@ class VLRTeam(BaseEntry):
     vlr_id: int
     name: str
     tricode: Optional[str]
-    region: Optional[str]
-    country: Optional[str]
+    country_short: Optional[str]
+    country_long: Optional[str]
     status: TeamStatus
-    founded_date: Optional[date]
-    disbanded_date: Optional[date]
-    logo_url: Optional[str]
-    website_url: Optional[str]
-    socials_url: Optional[str]
+    logo: str
+    socials: List[str]

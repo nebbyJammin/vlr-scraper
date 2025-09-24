@@ -27,9 +27,18 @@ def main():
     SCRAPER = VLRScraper(SCRAPER_OPTIONS)
     # for i in range(70, 80):
     #     debugSeries(i)
+
     # debugSeries(79) # project-v
     debugSeries(74) # vct-2025
     # debugSeries(4) # none
+
+    debugTeam(624) # prx
+    debugTeam(6387) # bleed
+
+def debugTeam(team_id: int):
+    team = SCRAPER.scrape_team(team_id=team_id)
+
+    LOGGER.debug(team)
 
 def debugSeries(series_id: int):
     global SCRAPER

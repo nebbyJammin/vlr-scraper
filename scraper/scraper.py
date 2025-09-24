@@ -10,31 +10,11 @@ from enum import Enum
 import requests
 import re
 
-from scraper.entities import CompletionStatus, VLREvent, VLRMatch, VLRSeries
+from scraper.entities import CompletionStatus, VLREvent, VLRMatch, VLRSeries, VLRTeam
+from scraper.scraper_functions.team_scraper import scrape_team_logo, scrape_team_name, scrape_team_region, scrape_team_socials, scrape_team_status
+from scraper.scraper_utils import BASE_URL, SCRAPER_MODE_TO_URL_ENDPOINT, VLRScraperMode, VLRScraperOptions, get_vlr_url
 
-@dataclass
-class VLRScraperOptions:
-    timeout: int = 10
-    local_tz: str = "UTC"
-    vlr_utc_offset: timedelta = timedelta(hours=4)
-
-class VLRScraperMode(Enum):
-    SERIES=0
-    EVENT=1
-    MATCH=2
-    TEAM=3
-    EVENT_MATCHES=10
-
-class VLRScraper:
-    BASE_URL = "https://vlr.gg/"
-    SCRAPER_MODE_TO_URL_ENDPOINT = {
-        VLRScraperMode.SERIES: "series",
-        VLRScraperMode.EVENT: "event",
-        VLRScraperMode.EVENT_MATCHES: "matches",
-        VLRScraperMode.MATCH: "",
-        VLRScraperMode.TEAM: "team",
-    }
-    
+class VLRScraper: 
     def __init__(self, options: VLRScraperOptions | None = None):
         if options is None:
             options = VLRScraperOptions()
@@ -98,7 +78,7 @@ class VLRScraper:
                 except ValueError:
                     continue
         else:
-            scraper_prefix: str = VLRScraper.SCRAPER_MODE_TO_URL_ENDPOINT.get(mode, "")
+            scraper_prefix: str = SCRAPER_MODE_TO_URL_ENDPOINT.get(mode, "")
 
             prefix_idx = paths.index(scraper_prefix)
             if prefix_idx < len(paths) - 1:
@@ -211,7 +191,7 @@ class VLRScraper:
             LOGGER.error(f"Invalid series ID entered: '{series_id}'")
             return None, None
 
-        url = urljoin(VLRScraper.BASE_URL, f"series/{series_id}")
+        url = get_vlr_url(f"series/{series_id}")
         LOGGER.info(f"Scraping series with url '{url}'")
         html = self._fetch_page(url)
 
@@ -298,7 +278,7 @@ class VLRScraper:
             LOGGER.error(f"Invalid series ID given: '{series_id}'")
             return None, None
 
-        url = urljoin(VLRScraper.BASE_URL, f"event/{event_id}")
+        url = get_vlr_url(f"event/{event_id}/")
         LOGGER.info(f"Scraping event with url: '{url}'")
         html = self._fetch_page(url)
 
@@ -446,7 +426,7 @@ class VLRScraper:
             return None, None
 
         # Matches are listed on the vlr.gg/event/matches/${event_id}/ endpoint
-        url = urljoin(VLRScraper.BASE_URL, f"event/matches/{event_id}/")
+        url = get_vlr_url(f"event/matches/{event_id}/")
         params = {
             "series_id": "all", # Query all matches under all stages
             "group": "all", # Query all matches under any completion status
@@ -519,26 +499,29 @@ class VLRScraper:
         return event_completion_status, dependent_match_list
                 
                 
-    def scrape_match(self, match_id: int, event_id: int) -> tuple[VLRMatch, list[int]]:
+    def scrape_match(self, match_id: int, event_id: int) -> VLRMatch:
+        """
+        Returns VLRMatch from a `match_id` and corresponding `event_id`
+        """
         if not isinstance(event_id, int):
             LOGGER.error(f"Invalid event id '{event_id}' entered")
-            return None, None
+            return None
         if not isinstance(match_id, int):
             LOGGER.error(f"Invalid match id '{match_id}' entered")
-            return None, None
+            return None
 
-        url = urljoin(VLRScraper.BASE_URL, f"/{match_id}/")
+        url = get_vlr_url(f"/{match_id}/")
         html = self._fetch_page(url)
 
         if not html:
-            return None, None
+            return None
         
         soup = BeautifulSoup(html, features="lxml")
         match_card = soup.select_one("div.wf-card.mod-color")
 
         if not match_card:
             LOGGER.error(f"Couldn't find match wf-card for match id '{match_id}'")
-            return None, None
+            return None
         
         # Get Stage + Tournament Round name
 
@@ -548,7 +531,7 @@ class VLRScraper:
 
         if not stage_round_tag:
             LOGGER.error(f"Couldn't find stage/round tag for match id '{match_id}'")
-            return None, None
+            return None
         
         stage_round_str = re.sub(r"\s+", " ", stage_round_tag.text).strip()
         stage_round_components = stage_round_str.split(":")
@@ -558,7 +541,7 @@ class VLRScraper:
             tournament_round_name = stage_round_components[1]
         else: 
             LOGGER.error(f"Unknown number of stage/round components received ({stage_round_components})")
-            return None, None
+            return None
         
         LOGGER.debug(f"Received {stage_name, tournament_round_name}")
 
@@ -603,10 +586,10 @@ class VLRScraper:
                         score_2 = int(score_2_str)
                     except Exception as e:
                         LOGGER.error(f"Found scores for game with match id of '{match_id}' but could not parse score as an int (score_1='{score_1_str}', score_2='{score_2_str}')")
-                        return None, None
+                        return None
                 elif len(winner_loser_team_tags) != 0:
                     LOGGER.error(f"Could not find score of a game that should have a score (match id of '{match_id}').")
-                    return None, None
+                    return None
                 else:
                     # match_live_tag = match_header_container.find("span", class_=lambda x: x is None) # Ensure we only select span with no class names
                     match_live_tag = next(
@@ -683,7 +666,7 @@ class VLRScraper:
                 team_2_id = None
         else:
             LOGGER.error(f"Not enough match header link tags scraped, and therefore, cannot infer the teams involved for match id '{match_id}'")
-            return None, None
+            return None
 
         # score_1: Optional[int]
         # score_2: Optional[int]
@@ -701,12 +684,46 @@ class VLRScraper:
                 team_2_id=team_2_id,
                 score_1=score_1,
                 score_2=score_2
-                # score_1=score_1,
-                # score_2=score_2,
             ), \
             list()
 
+    def scrape_team(self, team_id: int) -> VLRTeam | None:
+
+        url = get_vlr_url(f"/team/{team_id}/")
+        response = self._fetch_page(url=url)
+        if not response:
+            LOGGER.error(f"Error scraping VLRTeam for team with team id '{team_id}'")
+            return None
+
+        soup = BeautifulSoup(response, "lxml")
+
+        team_card = soup.find("div", class_="team-header")
         
+        # Name + Tricode
+        name, tricode = scrape_team_name(team_card, team_id)
+        if name == None:
+            LOGGER.error(f"Failed to scrape team for team with team id '{team_id}'")
+            return None
+
+        # Region
+        region, region_long = scrape_team_region(team_card, team_id)
+        # Status
+        status = scrape_team_status(team_card, team_id)
+        # Logo
+        logo = scrape_team_logo(team_card, team_id)
+        # Socials
+        socials = scrape_team_socials(team_card, team_id)
+
+        return VLRTeam(
+            vlr_id=team_id,
+            name=name,
+            tricode=tricode,
+            country_short=region,
+            country_long=region_long,
+            status=status,
+            logo=logo,
+            socials=socials,
+        )
         
 
 
