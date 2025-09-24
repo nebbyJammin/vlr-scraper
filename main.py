@@ -1,11 +1,18 @@
-from datetime import timedelta
-from logging_config import MAIN_LOGGER as LOGGER
-from scraper.entities import VLRSeries
-from scraper.scraper import VLRScraper, VLRScraperOptions
+import argparse
+import atexit
 import os
 import time
+from datetime import timedelta
+
+import psycopg2
+
+from logging_config import MAIN_LOGGER as LOGGER
+from pg_connection.PostgresPool import PostgresPool
+from scraper.entities import VLRSeries
+from scraper.scraper import VLRScraper, VLRScraperOptions
 
 SCRAPER: VLRScraper
+DB_POOL: PostgresPool = PostgresPool()
 
 # TODO: USE APSCHEDULER to schedule scraping
 def main():
@@ -71,4 +78,8 @@ def debugSeries(series_id: int):
 
 
 if __name__ == "__main__":
+    atexit.register(DB_POOL.close_all) # Ensure all db connections close gracefully on script termination
+
+    # parser = argparse.ArgumentParser(description="Nebby's vlr scraper")
+
     main();

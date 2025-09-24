@@ -60,13 +60,14 @@ def initialise_logger() -> tuple[logging.Logger, logging.Logger]:
 
     MAIN_LOGGER = logging.getLogger("Main")
     VLR_LOGGER = logging.getLogger("VLR Scraper")
+    PG_LOGGER = logging.getLogger("PG Logger")
 
     # TODO: Remove -> Silent noisy library
     logging.getLogger("urllib3.connectionpool").setLevel(logging.WARNING)
 
-    return MAIN_LOGGER, VLR_LOGGER
+    return MAIN_LOGGER, VLR_LOGGER, PG_LOGGER
 
 if __name__ != "__main__":
-    MAIN_LOGGER, VLR_LOGGER = initialise_logger()
+    MAIN_LOGGER, VLR_LOGGER, PG_LOGGER = initialise_logger()
 
     MAIN_LOGGER.info("Loggers have been successfully created!")
