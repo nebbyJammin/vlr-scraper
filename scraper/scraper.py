@@ -12,7 +12,7 @@ import re
 
 from scraper.entities import CompletionStatus, VLREvent, VLRMatch, VLRSeries, VLRTeam
 from scraper.scraper_functions.event_scraper import scrape_event_date, scrape_event_dependent_matches, scrape_event_name, scrape_event_prize, scrape_event_region, scrape_event_tag, scrape_event_thumbnail
-from scraper.scraper_functions.match_scraper import scrape_match_date, scrape_match_dependent_teams, scrape_match_name, scrape_match_note, scrape_match_status
+from scraper.scraper_functions.match_scraper import infer_event_from_match, scrape_match_date, scrape_match_dependent_teams, scrape_match_name, scrape_match_note, scrape_match_status
 from scraper.scraper_functions.series_scraper import scrape_series_dependent_events, scrape_series_description, scrape_series_name, scrape_series_status
 from scraper.scraper_functions.team_scraper import scrape_team_logo, scrape_team_name, scrape_team_region, scrape_team_socials, scrape_team_status
 from scraper.scraper_utils import BASE_URL, SCRAPER_MODE_TO_URL_ENDPOINT, VLRScraperMode, VLRScraperOptions, get_vlr_url
@@ -173,13 +173,17 @@ class VLRScraper:
 
         return scrape_event_dependent_matches(soup, event_id) 
                 
-    def scrape_match(self, match_id: int, event_id: int) -> VLRMatch:
+    def scrape_match(self, match_id: int, event_id: int | None = None) -> VLRMatch:
         """
         Returns VLRMatch from a `match_id` and corresponding `event_id`
         """
-        if not isinstance(event_id, int):
+        should_infer_event_id: bool = False
+        if event_id is None:
+            should_infer_event_id = True
+        elif not isinstance(event_id, int):
             LOGGER.error(f"Invalid event id '{event_id}' entered")
             return None
+
         if not isinstance(match_id, int):
             LOGGER.error(f"Invalid match id '{match_id}' entered")
             return None
@@ -197,6 +201,13 @@ class VLRScraper:
             LOGGER.error(f"Couldn't find match wf-card for match id '{match_id}'")
             return None
         
+        # Get event_id if there is no event id argument passed
+        if should_infer_event_id:
+            event_id = infer_event_from_match(match_card, match_id)
+            if not event_id:
+                LOGGER.error(f"Couldn't infer event id from match id '{match_id}' which did not have a known event id")
+                return None
+        
         # Get Stage + Tournament Round name
         stage_name, tournament_round_name = scrape_match_name(match_card, match_id)
         # Get match status + match_score
@@ -213,6 +224,7 @@ class VLRScraper:
 
         return VLRMatch(
             vlr_id=match_id,
+            event_id=event_id,
             stage=stage_name,
             tournament_round=tournament_round_name,
             tournament_note=tournament_note,

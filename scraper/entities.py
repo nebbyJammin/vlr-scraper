@@ -44,6 +44,7 @@ class VLREvent(BaseEntry):
 @dataclass
 class VLRMatch(BaseEntry):
     vlr_id: int
+    event_id: int
     stage: str
     tournament_round: str
     tournament_note: Optional[str]

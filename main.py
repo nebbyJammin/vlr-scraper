@@ -29,11 +29,12 @@ def main():
     #     debugSeries(i)
 
     # debugSeries(79) # project-v
-    debugSeries(74) # vct-2025
+    # debugSeries(74) # vct-2025
     # debugSeries(4) # none
 
-    debugTeam(624) # prx
-    debugTeam(6387) # bleed
+    # debugTeam(624) # prx
+    # debugTeam(6387) # bleed
+    LOGGER.debug(SCRAPER.scrape_match(542265))
 
 def debugTeam(team_id: int):
     team = SCRAPER.scrape_team(team_id=team_id)

@@ -153,3 +153,19 @@ def scrape_match_dependent_teams(root: Tag | BeautifulSoup | str, match_id: int 
         return None, None
     
     return team_1_id, team_2_id
+
+@soup_cast 
+def infer_event_from_match(root: Tag | BeautifulSoup | str, match_id: int | None) -> int | None:
+    match_header_event_tag = root.find("a", class_="match-header-event")
+
+    if not match_header_event_tag:
+        LOGGER.error(f"Could not find match header event tag for match with match id '{match_id}'")
+        return None
+    
+    href = match_header_event_tag.get("href", None)
+    if not href:
+        LOGGER.error(f"Could not retrieve href property from tag {match_header_event_tag} for match with match id '{match_id}'")
+
+    event_id = get_id_from_url(VLRScraperMode.EVENT, url=href)
+
+    return event_id
