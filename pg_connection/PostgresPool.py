@@ -74,8 +74,8 @@ class PostgresPool:
         self._tunnel.start()
         LOGGER.info("SSH tunnel established at localhost:%s", self._tunnel.local_bind_port)
 
-        DB_HOST = 'localhost' # use localhost db_host since localhost:$local_bind_port is being tunneled to localhost:$DB_PORT on DB_HOST
-        DB_PORT = self._tunnel.local_bind_port
+        self.DB_HOST = 'localhost' # use localhost db_host since localhost:$local_bind_port is being tunneled to localhost:$DB_PORT on DB_HOST
+        self.DB_PORT = self._tunnel.local_bind_port
     
     def _check_tunnel(self):
         if not self.SSH_USE_TUNNEL:
