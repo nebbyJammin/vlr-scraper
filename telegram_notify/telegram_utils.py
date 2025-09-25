@@ -1,0 +1,36 @@
+import os
+import logging
+import requests
+
+USE_TELEGRAM = os.getenv("USE_TELEGRAM", "false").lower() in ("true", "1", "yes")
+TELEGRAM_TOKEN = os.getenv("TELEGRAM_TOKEN")
+CHAT_ID = os.getenv("CHAT_ID")
+SEND_MESSAGE_URL = f"https://api.telegram.org/bot{TELEGRAM_TOKEN}/sendMessage"
+GET_ME_URL = f"https://api.telegram.org/bot{TELEGRAM_TOKEN}/getMe"
+
+def send_telegram_msg(message: str):
+    global CHAT_ID, SEND_MESSAGE_URL
+
+    if not USE_TELEGRAM or not TELEGRAM_TOKEN:
+        return
+
+    try:
+        requests.post(url=SEND_MESSAGE_URL, data={"chat_id": CHAT_ID, "text": message}, timeout=5)
+    except Exception as e:
+        logging.getLogger("Telegram Utils").warning("Failed to send Telegram message:", e)
+
+def test_telegram_token():
+    if not USE_TELEGRAM or not TELEGRAM_TOKEN:
+        return False
+    try:
+        response = requests.get(GET_ME_URL, timeout=5)
+        json_resp = response.json()
+        if json_resp.get("ok"):
+            logging.getLogger("Telegram Utils").info("Telegram token successfully verified.")
+            return True
+    except Exception as e:
+        logging.getLogger("Telegram Utils").error(f"Failed to verify Telegram token: {e}")
+    return False
+
+if USE_TELEGRAM:
+    test_telegram_token()
