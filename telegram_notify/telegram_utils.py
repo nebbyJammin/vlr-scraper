@@ -2,6 +2,7 @@ import os
 import logging
 import threading
 import requests
+from logging_config import VLR_LOGGER, PG_LOGGER, MAIN_LOGGER
 
 USE_TELEGRAM = os.getenv("USE_TELEGRAM", "false").lower() in ("true", "1", "yes")
 TELEGRAM_TOKEN = os.getenv("TELEGRAM_TOKEN")
@@ -11,7 +12,7 @@ SEND_MESSAGE_URL = f"https://api.telegram.org/bot{TELEGRAM_TOKEN}/sendMessage"
 GET_ME_URL = f"https://api.telegram.org/bot{TELEGRAM_TOKEN}/getMe"
 
 def send_telegram_msg(message: str):
-    global CHAT_IDS, SEND_MESSAGE_URL
+    global CHAT_IDS, SEND_MESSAGE_URL, USE_TELEGRAM, TELEGRAM_TOKEN
 
     if not USE_TELEGRAM or not TELEGRAM_TOKEN:
         return
@@ -32,6 +33,15 @@ def send_telegram_msg(message: str):
 def send_telegram_msg_threaded(message: str):
     threading.Thread(target=send_telegram_msg, args=(message,), daemon=True).start()
 
+class TelegramHandler(logging.Handler):
+    def emit(self, record: logging.LogRecord):
+        try:
+            if record.levelno >= logging.ERROR:
+                msg = self.format(record)
+                send_telegram_msg_threaded(msg)
+        except Exception:
+            pass
+
 def test_telegram_token():
     if not USE_TELEGRAM or not TELEGRAM_TOKEN:
         return False
@@ -47,3 +57,7 @@ def test_telegram_token():
 
 if USE_TELEGRAM:
     test_telegram_token()
+    telegram_handler = TelegramHandler()
+    telegram_handler.setFormatter(logging.Formatter("Error received from Scraper: %(message)s"))
+    for logger in (VLR_LOGGER, PG_LOGGER, MAIN_LOGGER):
+        logger.addHandler(telegram_handler)

@@ -55,6 +55,7 @@ def initialise_logger() -> tuple[logging.Logger, logging.Logger, logging.Logger]
         handlers=[
             file_handler,
             stream_handler,
+            error_handler
         ]
     )
 

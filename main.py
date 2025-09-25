@@ -80,9 +80,7 @@ if __name__ == "__main__":
     send_telegram_msg("vlr gg scraper is starting up!")
 
     atexit.register(DB_POOL.close_all) # Ensure all db connections close gracefully on script termination
+    atexit.register(send_telegram_msg, "vlr gg scraper is shutting down.")
     # parser = argparse.ArgumentParser(description="Nebby's vlr scraper")
 
-    try:
-        main();
-    finally:
-        send_telegram_msg("vlr gg scraper is shutting down.")
+    main();
