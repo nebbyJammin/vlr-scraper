@@ -16,7 +16,7 @@ def scrape_match_name(root: Tag | BeautifulSoup | str, match_id: int | None) -> 
     stage_round_tag = root.find("div", class_="match-header-event-series")
 
     if not stage_round_tag:
-        LOGGER.error(f"Couldn't find stage/round tag for match id '{match_id}'")
+        LOGGER.error(f"Couldn't find stage/round tag for match id '{match_id}'", exc_info=True)
         return None, None
         
     stage_round_str = re.sub(r"\s+", " ", stage_round_tag.text).strip()
@@ -25,8 +25,8 @@ def scrape_match_name(root: Tag | BeautifulSoup | str, match_id: int | None) -> 
     if len(stage_round_components) == 2:
         stage_name = stage_round_components[0].strip()
         tournament_round_name = stage_round_components[1].strip()
-    else: 
-        LOGGER.error(f"Unknown number of stage/round components received ({stage_round_components})")
+    else:
+        LOGGER.error(f"Unknown number of stage/round components received ({stage_round_components})", exc_info=True)
         return None, None
         
     return stage_name, tournament_round_name
@@ -45,7 +45,8 @@ def scrape_match_status(root: Tag | BeautifulSoup | str, match_id: int | None) -
     match_header_container = root.find("div", class_="match-header-vs-score")
 
     if not match_header_container:
-        LOGGER.error(f"Could not find the match score container for match id {match_id}")
+        LOGGER.error(f"Could not find the match score container for match id {match_id}", exc_info=True)
+        return CompletionStatus.UNKNOWN, None, None
     else:
         match_placeholder_tag = match_header_container.find("div", class_="match-header-vs-placeholder")
 
@@ -69,10 +70,10 @@ def scrape_match_status(root: Tag | BeautifulSoup | str, match_id: int | None) -
                     score_1 = int(score_1_str)
                     score_2 = int(score_2_str)
                 except Exception as e:
-                    LOGGER.error(f"Found scores for game with match id of '{match_id}' but could not parse score as an int (score_1='{score_1_str}', score_2='{score_2_str}')")
+                    LOGGER.error(f"Found scores for game with match id of '{match_id}' but could not parse score as an int (score_1='{score_1_str}', score_2='{score_2_str}')", exc_info=True)
                     return None, None, None
             elif len(winner_loser_team_tags) != 0:
-                LOGGER.error(f"Could not find score of a game that should have a score (match id of '{match_id}').")
+                LOGGER.error(f"Could not find score of a game that should have a score (match id of '{match_id}').", exc_info=True)
                 return None, None, None
             else:
                 # match_live_tag = match_header_container.find("span", class_=lambda x: x is None) # Ensure we only select span with no class names
@@ -86,7 +87,7 @@ def scrape_match_status(root: Tag | BeautifulSoup | str, match_id: int | None) -
                 if match_live_tag:
                     match_status = CompletionStatus.ONGOING
                 else:
-                    LOGGER.error(f"Could not find the match status of match id '{match_id}'")
+                    LOGGER.error(f"Could not find the match status of match id '{match_id}'", exc_info=True)
                     match_status = CompletionStatus.UNKNOWN
     
     return match_status, score_1, score_2
@@ -115,7 +116,7 @@ def scrape_match_date(root: Tag | BeautifulSoup | str, match_id: int | None) -> 
                 VLR_UTC_OFFSET = timedelta(hours=4) # vlr page gives time meta data in UTC-4
                 date_start = datetime.strptime(date_start_str, "%Y-%m-%d %H:%M:%S").replace(tzinfo=timezone.utc) + VLR_UTC_OFFSET # add 4 hours to properly convert to UTC time
             except Exception as e:
-                LOGGER.error(f"Failed to parse '{date_start_str}' as a datetime object for match id '{match_id}'")
+                LOGGER.error(f"Failed to parse '{date_start_str}' as a datetime object for match id '{match_id}'", exc_info=True)
                 date_start = None
     
     return date_start
@@ -128,7 +129,7 @@ def scrape_match_dependent_teams(root: Tag | BeautifulSoup | str, match_id: int 
     match_header_links: list[Tag] = root.findAll("a", class_=["match-header-link"])
 
     if len(match_header_links) > 2:
-        LOGGER.error(f"More than 2 match header link tags scraped, and therefore, cannot infer the teams involved for match id '{match_id}'")
+        LOGGER.error(f"More than 2 match header link tags scraped, and therefore, cannot infer the teams involved for match id '{match_id}'", exc_info=True)
         return None, None
     elif len(match_header_links) == 2:
         team_1_tag = match_header_links[0]
@@ -149,7 +150,7 @@ def scrape_match_dependent_teams(root: Tag | BeautifulSoup | str, match_id: int 
         except Exception:
             team_2_id = None
     else:
-        LOGGER.error(f"Not enough match header link tags scraped, and therefore, cannot infer the teams involved for match id '{match_id}'")
+        LOGGER.error(f"Not enough match header link tags scraped, and therefore, cannot infer the teams involved for match id '{match_id}'", exc_info=True)
         return None, None
     
     return team_1_id, team_2_id
@@ -159,12 +160,12 @@ def infer_event_from_match(root: Tag | BeautifulSoup | str, match_id: int | None
     match_header_event_tag = root.find("a", class_="match-header-event")
 
     if not match_header_event_tag:
-        LOGGER.error(f"Could not find match header event tag for match with match id '{match_id}'")
+        LOGGER.error(f"Could not find match header event tag for match with match id '{match_id}'", exc_info=True)
         return None
     
     href = match_header_event_tag.get("href", None)
     if not href:
-        LOGGER.error(f"Could not retrieve href property from tag {match_header_event_tag} for match with match id '{match_id}'")
+        LOGGER.error(f"Could not retrieve href property from tag {match_header_event_tag} for match with match id '{match_id}'", exc_info=True)
 
     event_id = get_id_from_url(VLRScraperMode.EVENT, url=href)
 

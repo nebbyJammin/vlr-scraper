@@ -12,7 +12,7 @@ from scraper.scraper_utils import VLRScraperMode, get_id_from_url, soup_cast
 def scrape_series_name(root: Tag | str, series_id: int | None) -> str | None:
     title_tag = root.find("div", class_="wf-title")
     if title_tag is None:
-        LOGGER.error(f"Could not find title tag for team with team id'{series_id}'")
+        LOGGER.error(f"Could not find title tag for team with team id'{series_id}'", exc_info=True)
         return None
     
     title = title_tag.text.strip()

@@ -15,7 +15,7 @@ def scrape_team_name(root: Tag | str, team_id: int | None) -> tuple[str | None, 
     if team_name_tag:
         team_name = team_name_tag.text.strip()
     else:
-        LOGGER.error(f"Could not find the team name for team with id '{team_id}'")
+        LOGGER.error(f"Could not find the team name for team with id '{team_id}'", exc_info=True)
         return None, None
 
     team_tricode_tag = wf_name_container.find("h2", class_="team-header-tag")
@@ -38,7 +38,7 @@ def scrape_team_region(root: Tag | str, team_id: int | None) -> tuple[str | None
     flag_container = root.find("div", class_="team-header-country")
 
     if not flag_container:
-        LOGGER.error(f"Could not find flag container for team with team id '{team_id}'")
+        LOGGER.error(f"Could not find flag container for team with team id '{team_id}'", exc_info=True)
         return None, None
     
     flag_short_tag = flag_container.find("i", class_="flag")
@@ -93,13 +93,13 @@ def scrape_team_logo(root: Tag | str, team_id: int | None) -> str:
     team_logo_container: Tag | None = root.find("div", class_="team-header-logo")
 
     if not team_logo_container:
-        LOGGER.error(f"Could not find team logo for team with team id '{team_id}'")
+        LOGGER.error(f"Could not find team logo for team with team id '{team_id}'", exc_info=True)
         return ""
     
     team_logo_tag = team_logo_container.find("img")
 
     if not team_logo_tag:
-        LOGGER.error(f"Could not find team logo img url for team with team id '{team_id}'")
+        LOGGER.error(f"Could not find team logo img url for team with team id '{team_id}'", exc_info=True)
         return ""
     
     team_logo_url = team_logo_tag.get("src")

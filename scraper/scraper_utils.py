@@ -45,9 +45,9 @@ def soup_cast(func):
 
 def get_id_from_url(mode: VLRScraperMode, url: str) -> int | None:
     if not isinstance(mode, VLRScraperMode):
-        LOGGER.error(f"Invalid scraper mode entered. Mode was of type '{mode.__class__}'")
+        LOGGER.error(f"Invalid scraper mode entered. Mode was of type '{mode.__class__}'", exc_info=True)
     if not isinstance(url, str):
-        LOGGER.error(f"Invalid url entered. URL was of type '{mode.__class__}'")
+        LOGGER.error(f"Invalid url entered. URL was of type '{mode.__class__}'", exc_info=True)
         
     url = url.strip()
 
@@ -62,7 +62,7 @@ def get_id_from_url(mode: VLRScraperMode, url: str) -> int | None:
                 if i < len(paths) - 1:
                     id_as_string = paths[i + 1]
                 else:
-                    LOGGER.error(f"No ID could be extracted from URL '{url}'")
+                    LOGGER.error(f"No ID could be extracted from URL '{url}'", exc_info=True)
                     return None
             else:
                 # Try to just cast current path as a number
@@ -82,10 +82,10 @@ def get_id_from_url(mode: VLRScraperMode, url: str) -> int | None:
             try:
                 id = int(id_as_string)
             except ValueError:
-                LOGGER.error(f"Got invalid ID from {mode}")
+                LOGGER.error(f"Got invalid ID from {mode}", exc_info=True)
                 return None
         else:
-            LOGGER.error(f"No ID could be extracted from URL {url}")
+            LOGGER.error(f"No ID could be extracted from URL {url}", exc_info=True)
             return None
 
 

@@ -1,5 +1,6 @@
 import os
 import logging
+import threading
 import requests
 
 USE_TELEGRAM = os.getenv("USE_TELEGRAM", "false").lower() in ("true", "1", "yes")
@@ -15,11 +16,21 @@ def send_telegram_msg(message: str):
     if not USE_TELEGRAM or not TELEGRAM_TOKEN:
         return
 
+    if not CHAT_IDS:
+        logging.getLogger("Telegram Utils").warning("No chat IDs configured, skipping the Telegram message.")
+        return 
+
     for CHAT_ID in CHAT_IDS:
-        try:
-            requests.post(url=SEND_MESSAGE_URL, data={"chat_id": CHAT_ID, "text": message}, timeout=5)
-        except Exception as e:
-            logging.getLogger("Telegram Utils").warning("Failed to send Telegram message:", e)
+        for attempt in range(3):
+            try:
+                requests.post(url=SEND_MESSAGE_URL, data={"chat_id": CHAT_ID, "text": message}, timeout=5)
+                break
+            except Exception as e:
+                if attempt == 2:
+                    logging.getLogger("Telegram Utils").warning("Failed to send Telegram message: %s", e)
+
+def send_telegram_msg_threaded(message: str):
+    threading.Thread(target=send_telegram_msg, args=(message,), daemon=True).start()
 
 def test_telegram_token():
     if not USE_TELEGRAM or not TELEGRAM_TOKEN:

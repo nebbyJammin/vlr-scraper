@@ -64,7 +64,7 @@ try:
         conn.commit()
     except Exception as e:
         conn.rollback()
-        LOGGER.error("Failed to reset schema.", exc_info=e)
+        LOGGER.error(f"Failed to reset schema.", exc_info=True)
         raise
 
     LOGGER.debug("Successfully created schema.")

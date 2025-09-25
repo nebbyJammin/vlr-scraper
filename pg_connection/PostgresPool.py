@@ -56,11 +56,11 @@ class PostgresPool:
             return # already running
 
         if not self.SSH_HOST:
-            LOGGER.error("No SSH Host specified in the .env - couldn't create ssh tunnel")
+            LOGGER.error("No SSH Host specified in the .env - couldn't create ssh tunnel", exc_info=True)
             exit(1)
             
         if not self.SSH_USER:
-            LOGGER.error("No SSH User specified in the .env - couldn't create ssh tunnel")
+            LOGGER.error("No SSH User specified in the .env - couldn't create ssh tunnel", exc_info=True)
             exit(1)
 
         LOGGER.warning("Starting SSH tunnel to %s", self.SSH_HOST)
@@ -82,7 +82,7 @@ class PostgresPool:
             return
         
         if not self._tunnel or not self._tunnel.is_active:
-            LOGGER.error("SSH tunnel lost, restarting...")
+            LOGGER.error("SSH tunnel lost, restarting...", exc_info=True)
             self._start_tunnel()
             self._init_pool()
         
@@ -91,7 +91,7 @@ class PostgresPool:
                 with socket.create_connection(("localhost", self._tunnel.local_bind_port), timeout=2):
                     pass
             except Exception:
-                LOGGER.error("SSH tunnel socket dead, restarting...")
+                LOGGER.error("SSH tunnel socket dead, restarting...", exc_info=True)
                 self._start_tunnel()
                 self._init_pool()
     
