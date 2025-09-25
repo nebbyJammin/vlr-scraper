@@ -26,11 +26,11 @@ class PostgresPool:
         self.DB_PASSWORD=os.getenv("DB_PASSWORD", "mypassword")
 
         # Load SSH tunnel settings from environment
-        self.SSH_USE_TUNNEL=os.getenv("SSH_USE_TUNNEL", "false").lower() in ("true", "1", "yes")
-        self.SSH_TUNNELED_PORT=int(os.getenv('SSH_TUNNELED_PORT', 6543))
-        self.SSH_HOST=os.getenv("SSH_HOST")
-        self.SSH_USER=os.getenv("SSH_USER")
-        self.SSH_KEY=os.getenv("SSH_KEY")
+        self.SSH_USE_TUNNEL=os.getenv("SSH_USE_DB_TUNNEL", "false").lower() in ("true", "1", "yes")
+        self.SSH_TUNNELED_PORT=int(os.getenv('SSH_DB_TUNNELED_PORT', 6543))
+        self.SSH_HOST=os.getenv("SSH_DB_HOST")
+        self.SSH_USER=os.getenv("SSH_DB_USER")
+        self.SSH_KEY=os.getenv("SSH_DB_KEY")
 
         # Intitiate the SSH tunnel if the user has enabled SSH tunnel
         if self.SSH_USE_TUNNEL:
