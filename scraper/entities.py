@@ -34,11 +34,11 @@ class VLREvent(BaseEntry):
     series_id: int
     region: Optional[str]
     location_long: Optional[str]
-    tags: list[str]
+    tags: List[str]
     prize: str
     date_str: Optional[str]
-    date_start: Optional[datetime]
-    date_end: Optional[datetime]
+    date_start: Optional[date]
+    date_end: Optional[date]
     thumbnail: Optional[str]
 
 @dataclass

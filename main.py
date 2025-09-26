@@ -7,13 +7,11 @@ from datetime import datetime, timedelta, timezone
 import psycopg2
 
 from logging_config import MAIN_LOGGER as LOGGER
-from pg_connection.PostgresPool import PostgresPool
 from scraper.entities import VLRSeries
 from scraper.scraper import VLRScraper, VLRScraperOptions
 from telegram_notify.telegram_utils import send_telegram_msg
 
 SCRAPER: VLRScraper
-DB_POOL: PostgresPool = PostgresPool()
 
 # TODO: USE APSCHEDULER to schedule scraping
 def main():
@@ -79,7 +77,6 @@ def debugSeries(series_id: int):
 if __name__ == "__main__":
     send_telegram_msg("vlr gg scraper is starting up!")
 
-    atexit.register(DB_POOL.close_all) # Ensure all db connections close gracefully on script termination
     atexit.register(send_telegram_msg, "vlr gg scraper is shutting down.")
     # parser = argparse.ArgumentParser(description="Nebby's vlr scraper")
 
