@@ -234,7 +234,7 @@ def scrape_event_dependent_matches(root: Tag | BeautifulSoup | str, event_id: in
             found_completed_event = True
         elif ml_status == "live" or ml_status == "ongoing":
             found_live_event = True
-        elif ml_status == "upcoming":
+        elif ml_status == "upcoming" or ml_status == "tbd":
             found_upcoming_event = True
         else:
             LOGGER.error(f"Found unknown ml_status '{ml_status}' while scraping the dependent matches for event_id '{event_id}'", exc_info=True)

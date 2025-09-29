@@ -26,8 +26,13 @@ def scrape_match_name(root: Tag | BeautifulSoup | str, match_id: int | None) -> 
         stage_name = stage_round_components[0].strip()
         tournament_round_name = stage_round_components[1].strip()
     else:
-        LOGGER.error(f"Unknown number of stage/round components received ({stage_round_components})", exc_info=True)
-        return None, None
+        if stage_round_components > 2:
+            stage_name = stage_round_components[0].strip()
+            tournament_round_name = stage_round_components[1].strip()
+            LOGGER.warning(f"Received more than 3 stage/round components for match with match id '{match_id}'. Silently failing and ignoring the third component.")
+        else:
+            LOGGER.error(f"Unknown number of stage/round components received ({stage_round_components})", exc_info=True)
+            return None, None
         
     return stage_name, tournament_round_name
 

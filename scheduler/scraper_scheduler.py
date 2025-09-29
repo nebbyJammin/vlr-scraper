@@ -43,7 +43,7 @@ class ScrapeScheduler():
 
     def shutdown(self):
         """Shut down the executor and scheduler safely"""
-        self._task_thread_pool_executor.shutdown(wait=True)
+        self._task_thread_pool_executor.shutdown(wait=False)
         self._scheduler.shutdown(wait=False)
 
     def _do_random_sleep(self):
@@ -119,13 +119,17 @@ class ScrapeScheduler():
         """Handles a scraping task. Any dependent entities that need to be scraped will be scraped."""
 
         if task.task_type == ScraperTaskType.SCRAPE_SERIES:
+            LOGGER.info(f"Scraping series task {task.id, task}")
             self._handle_scrape_series_task(task)
         elif task.task_type == ScraperTaskType.SCRAPE_EVENT:
+            LOGGER.info(f"Scraping event task {task.id, task}")
             self._handle_scrape_event_task(task)
         elif task.task_type == ScraperTaskType.SCRAPE_MATCH:
+            LOGGER.info(f"Scraping match task {task.id, task}")
             self._handle_scrape_match_task(task)
         elif task.task_type == ScraperTaskType.SCRAPE_TEAM:
-            self._handle_scrape_series_task(task)
+            LOGGER.info(f"Scraping team task {task.id, task}")
+            self._handle_scrape_team_task(task)
     
     def _handle_scrape_series_task(self, task: ScraperTask) -> bool:
         if not task.id:

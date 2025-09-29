@@ -198,7 +198,7 @@ class VLRScraper:
             return None
         
         soup = BeautifulSoup(html, features="lxml")
-        match_card = soup.select_one("div.wf-card.mod-color")
+        match_card = soup.select_one("div.wf-card.match-header")
 
         if not match_card:
             LOGGER.error(f"Couldn't find match wf-card for match id '{match_id}'", exc_info=True)
