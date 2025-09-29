@@ -42,15 +42,19 @@ class VLRScraper:
 
         headers |= params
 
-        try:
-            response = requests.get(url, timeout=self.timeout, params=headers)
-            response.raise_for_status()
-            return response.text
-        except requests.exceptions.RequestException as e:
-            LOGGER.error(f"Failed to fetch {url}: {e}", exc_info=True)
-            return None
-        except Exception as e:
-            LOGGER.error(f"Unknown exception occurred at {url}: {e}", exc_info=True)
+        NUM_ATTEMPTS = 5
+        for attempt in range(NUM_ATTEMPTS):
+            try:
+                response = requests.get(url, timeout=self.timeout, params=headers)
+                response.raise_for_status()
+                return response.text
+            except requests.exceptions.RequestException as e:
+                if attempt == NUM_ATTEMPTS - 1:
+                    LOGGER.error(f"Failed to fetch {url}: {e}", exc_info=True)
+                    return None
+            except Exception as e:
+                if attempt == NUM_ATTEMPTS - 1:
+                    LOGGER.error(f"Unknown exception occurred at {url}: {e}", exc_info=True)
                 
     def scrape_series(self, series_id: int) -> tuple[VLRSeries | None, list[int] | None]:
         if not isinstance(series_id, int):
