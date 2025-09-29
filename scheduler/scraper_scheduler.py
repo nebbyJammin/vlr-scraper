@@ -18,8 +18,8 @@ from scraper.entities import VLRResult, VLREvent, VLRMatch, VLRSeries, VLRTeam
 from scraper.scraper import VLRScraper
 
 class ScrapeScheduler():
-    MIN_SLEEP_TIME = 1
-    MAX_SLEEP_TIME = 4
+    MIN_SLEEP_TIME = 0.5
+    MAX_SLEEP_TIME = 2
 
     def __init__(self, VLR_Scraper: VLRScraper):
         self._scraper = VLR_Scraper
@@ -28,7 +28,7 @@ class ScrapeScheduler():
         self._task_queue: PriorityQueue[Tuple[int, ScraperTask]] = PriorityQueue()
         self._task_counter = count()
         self._is_completing_scraper_tasks = False
-        self._task_thread_pool_executor = ThreadPoolExecutor(max_workers=5)
+        self._task_thread_pool_executor = ThreadPoolExecutor(max_workers=10)
 
         self._results_lock = threading.Lock()
         self._result_store = ResultStore(self._results_lock)
