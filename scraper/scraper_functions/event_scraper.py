@@ -102,7 +102,7 @@ def try_unpack_date_str(date_str: str) -> tuple[date | None, date | None]:
 def scrape_event_name(root: Tag | BeautifulSoup | str, event_id: int | None) -> str | None:
     event_title_tag: Tag = root.find("h1", class_="wf-title")
     if not event_title_tag:
-        LOGGER.error(f"Could not find event title tag for event with event id '{event_id}'", exc_info=True)
+        LOGGER.error(f"Could not find event title tag for event with event id '{event_id}'")
         return None
         
     event_title: str = event_title_tag.text.strip()
@@ -237,7 +237,7 @@ def scrape_event_dependent_matches(root: Tag | BeautifulSoup | str, event_id: in
         elif ml_status == "upcoming" or ml_status == "tbd":
             found_upcoming_event = True
         else:
-            LOGGER.error(f"Found unknown ml_status '{ml_status}' while scraping the dependent matches for event_id '{event_id}'", exc_info=True)
+            LOGGER.error(f"Found unknown ml_status '{ml_status}' while scraping the dependent matches for event_id '{event_id}'")
 
         # Match ID from href
         href = result.get("href")

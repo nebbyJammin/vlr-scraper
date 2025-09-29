@@ -49,10 +49,12 @@ class VLRScraper:
         except requests.exceptions.RequestException as e:
             LOGGER.error(f"Failed to fetch {url}: {e}", exc_info=True)
             return None
+        except Exception as e:
+            LOGGER.error(f"Unknown exception occurred at {url}: {e}", exc_info=True)
                 
     def scrape_series(self, series_id: int) -> tuple[VLRSeries | None, list[int] | None]:
         if not isinstance(series_id, int):
-            LOGGER.error(f"Invalid series ID entered: '{series_id}'", exc_info=True)
+            LOGGER.error(f"Invalid series ID entered: '{series_id}'")
             return None, None
 
         url = get_vlr_url(f"series/{series_id}")
@@ -68,7 +70,7 @@ class VLRScraper:
         # Scrape Title
         title: str | None = scrape_series_name(soup, series_id)
         if title is None:
-            LOGGER.error(f"Could not find title_tag at url '{url}'", exc_info=True)
+            LOGGER.error(f"Could not find title_tag at url '{url}'")
             return None, None
 
         # Scrape Description
@@ -89,11 +91,11 @@ class VLRScraper:
 
     def scrape_event(self, event_id: int, series_id: int) -> tuple[VLREvent | None, list[int] | None]:
         if not isinstance(event_id, int):
-            LOGGER.error(f"Invalid event ID entered: '{event_id}'", exc_info=True)
+            LOGGER.error(f"Invalid event ID entered: '{event_id}'")
             return None, None
         # Series ID is required to return a structurally complete VLREvent object
         if not isinstance(series_id, int):
-            LOGGER.error(f"Invalid series ID given: '{series_id}'", exc_info=True)
+            LOGGER.error(f"Invalid series ID given: '{series_id}'")
             return None, None
 
         url = get_vlr_url(f"event/{event_id}/")
@@ -108,13 +110,13 @@ class VLRScraper:
         event_card = soup.find("div", class_="event-header")
 
         if not event_card:
-            LOGGER.error(f"Could not find the event header for event with event id '{event_id}'", exc_info=True)
+            LOGGER.error(f"Could not find the event header for event with event id '{event_id}'")
             return None
 
         # Scrape event name
         event_title: str = scrape_event_name(event_card, event_id)
         if not event_title:
-            LOGGER.error(f"Could not find event title for event with url '{url}'", exc_info=True)
+            LOGGER.error(f"Could not find event title for event with url '{url}'")
             return None, None
 
         # Scrape region/location
@@ -156,7 +158,7 @@ class VLRScraper:
             None, None - if the completion status can be inferred OR when an invalid event_id is entered.
         """
         if not isinstance(event_id, int):
-            LOGGER.error(f"Invalid event ID entered: '{event_id}'", exc_info=True)
+            LOGGER.error(f"Invalid event ID entered: '{event_id}'")
             return None, None
 
         # Matches are listed on the vlr.gg/event/matches/${event_id}/ endpoint
@@ -184,11 +186,11 @@ class VLRScraper:
         if event_id is None:
             should_infer_event_id = True
         elif not isinstance(event_id, int):
-            LOGGER.error(f"Invalid event id '{event_id}' entered", exc_info=True)
+            LOGGER.error(f"Invalid event id '{event_id}' entered")
             return None
 
         if not isinstance(match_id, int):
-            LOGGER.error(f"Invalid match id '{match_id}' entered", exc_info=True)
+            LOGGER.error(f"Invalid match id '{match_id}' entered")
             return None
 
         url = get_vlr_url(f"/{match_id}/")
@@ -201,14 +203,14 @@ class VLRScraper:
         match_card = soup.select_one("div.wf-card.match-header")
 
         if not match_card:
-            LOGGER.error(f"Couldn't find match wf-card for match id '{match_id}'", exc_info=True)
+            LOGGER.error(f"Couldn't find match wf-card for match id '{match_id}'")
             return None
         
         # Get event_id if there is no event id argument passed
         if should_infer_event_id:
             event_id = infer_event_from_match(match_card, match_id)
             if not event_id:
-                LOGGER.error(f"Couldn't infer event id from match id '{match_id}' which did not have a known event id", exc_info=True)
+                LOGGER.error(f"Couldn't infer event id from match id '{match_id}' which did not have a known event id")
                 return None
         
         # Get Stage + Tournament Round name
@@ -216,7 +218,7 @@ class VLRScraper:
         # Get match status + match_score
         match_status, score_1, score_2 = scrape_match_status(match_card, match_id)
         if match_status is None:
-            LOGGER.error(f"Failed to parse match status for match with url '{url}'", exc_info=True)
+            LOGGER.error(f"Failed to parse match status for match with url '{url}'")
             return None
         # Get match note
         tournament_note = scrape_match_note(match_card, match_id)
@@ -245,7 +247,7 @@ class VLRScraper:
         url = get_vlr_url(f"/team/{team_id}/")
         response = self._fetch_page(url=url)
         if not response:
-            LOGGER.error(f"Error scraping VLRTeam for team with team id '{team_id}'", exc_info=True)
+            LOGGER.error(f"Error scraping VLRTeam for team with team id '{team_id}'")
             return None
 
         soup = BeautifulSoup(response, "lxml")
@@ -255,7 +257,7 @@ class VLRScraper:
         # Name + Tricode
         name, tricode = scrape_team_name(team_card, team_id)
         if name == None:
-            LOGGER.error(f"Failed to scrape team for team with team id '{team_id}'", exc_info=True)
+            LOGGER.error(f"Failed to scrape team for team with team id '{team_id}'")
             return None
 
         # Region
