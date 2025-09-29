@@ -5,10 +5,10 @@ services:
     build:
       context: .
       dockerfile: docker/Dockerfile
-    container_name: vlr-scraper
+    container_name: vlrscraper
     command: python main.py
-    # volumes:
-    #   - .:/app
+    volumes:
+      - .:/app
     networks:
       vlr_scraper_net:
         driver: bridge

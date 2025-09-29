@@ -1,3 +1,4 @@
+import time
 from typing import List
 from urllib.parse import quote, urljoin
 from zoneinfo import ZoneInfo
@@ -81,7 +82,8 @@ class VLRScraper:
             vlr_id=series_id,
             name=title,
             description=description,
-            status=series_status
+            status=series_status,
+            date_scraped=datetime.now(timezone.utc),
         ),\
         event_ids
 
@@ -140,7 +142,8 @@ class VLRScraper:
             date_str=date_str,
             date_start=date_start,
             date_end=date_end,
-            thumbnail=thumbnail
+            thumbnail=thumbnail,
+            date_scraped=datetime.now(timezone.utc),
         ),\
         dependent_matches
 
@@ -233,7 +236,8 @@ class VLRScraper:
             team_1_id=team_1_id,
             team_2_id=team_2_id,
             score_1=score_1,
-            score_2=score_2
+            score_2=score_2,
+            date_scraped=datetime.now(timezone.utc),
         )
 
     def scrape_team(self, team_id: int) -> VLRTeam | None:
@@ -272,5 +276,6 @@ class VLRScraper:
             status=status,
             logo=logo,
             socials=socials,
+            date_scraped=datetime.now(timezone.utc),
         )
         

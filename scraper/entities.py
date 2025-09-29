@@ -1,4 +1,5 @@
-from dataclasses import asdict, dataclass
+from dataclasses import asdict, dataclass, field
+import json
 from typing import List, Optional
 from datetime import date, datetime
 from enum import Enum
@@ -15,19 +16,31 @@ class TeamStatus(Enum):
     ACTIVE=2
 
 @dataclass
-class BaseEntry:
+class ScrapableEntry:
+    date_scraped: Optional[datetime] = field(default=None, kw_only=True) # Can omit if we are using this dataclass outside of a web scraping context.
+
+    def _serializer(self, o):
+        if isinstance(o, (date, datetime)):
+            return o.isoformat()
+        if isinstance(o, (CompletionStatus, TeamStatus)):
+            return o.value
+        return str(o)
+    
     def to_dict(self):
         return asdict(self)
 
+    def to_json(self):
+        return json.dumps(asdict(self), default=self._serializer)
+
 @dataclass
-class VLRSeries(BaseEntry):
+class VLRSeries(ScrapableEntry):
     vlr_id: int
     name: str
     description: Optional[str]
     status: CompletionStatus
 
 @dataclass
-class VLREvent(BaseEntry):
+class VLREvent(ScrapableEntry):
     vlr_id: int
     name: str
     status: CompletionStatus
@@ -42,7 +55,7 @@ class VLREvent(BaseEntry):
     thumbnail: Optional[str]
 
 @dataclass
-class VLRMatch(BaseEntry):
+class VLRMatch(ScrapableEntry):
     vlr_id: int
     event_id: int
     stage: str
@@ -58,7 +71,7 @@ class VLRMatch(BaseEntry):
     score_2: Optional[int]
 
 @dataclass
-class VLRTeam(BaseEntry):
+class VLRTeam(ScrapableEntry):
     vlr_id: int
     name: str
     tricode: Optional[str]
@@ -67,3 +80,5 @@ class VLRTeam(BaseEntry):
     status: TeamStatus
     logo: str
     socials: List[str]
+
+VLRResult = VLRSeries | VLREvent | VLRMatch | VLRTeam

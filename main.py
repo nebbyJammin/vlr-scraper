@@ -1,21 +1,29 @@
 import argparse
 import atexit
+from enum import Enum
+import json
 import os
 import time
-from datetime import datetime, timedelta, timezone
+from datetime import date, datetime, timedelta, timezone
+from typing import Dict, List
 
 import psycopg2
+import requests
 
 from logging_config import MAIN_LOGGER as LOGGER
-from scraper.entities import VLRSeries
+from private_api_utils.private_api_bulk import bulk_insert_events, bulk_insert_matches, bulk_insert_results, bulk_insert_series, bulk_insert_teams
+from scheduler.scraper_scheduler import ScrapeScheduler
+from scheduler.scraper_tasks import ScraperTask, ScraperTaskType
+from scraper.entities import VLRResult, VLRSeries, VLRTeam
 from scraper.scraper import VLRScraper, VLRScraperOptions
+from scraping_services.initial_run import do_initial_run
 from telegram_notify.telegram_utils import send_telegram_msg
 
 SCRAPER: VLRScraper
+SCRAPE_SCHEDULER: ScrapeScheduler
 
-# TODO: USE APSCHEDULER to schedule scraping
-def main():
-    global SCRAPER
+def initialise_scraper():
+    global SCRAPER, SCRAPE_SCHEDULER
 
     vlr_utc_offset_str = os.getenv("VLR_UTC_OFFSET", 4)
     vlr_utc_offset: int = 4
@@ -31,6 +39,37 @@ def main():
     )
 
     SCRAPER = VLRScraper(SCRAPER_OPTIONS)
+    SCRAPE_SCHEDULER = ScrapeScheduler(SCRAPER)
+
+def main():
+    global SCRAPER, SCRAPE_SCHEDULER
+
+    SCRAPE_SCHEDULER.enqueue_task(
+        ScraperTask(
+            task_type=ScraperTaskType.SCRAPE_SERIES,
+            id=85,
+            recursive=False
+        )
+    )
+
+    # SCRAPE_SCHEDULER.enqueue_task(
+    #     ScraperTask(
+    #         task_type=ScraperTaskType.SCRAPE_SERIES,
+    #         id=74,
+    #         recursive=False
+    #     )
+    # )
+    # SCRAPE_SCHEDULER.enqueue_task(
+    #     ScraperTask(
+    #         task_type=ScraperTaskType.SCRAPE_EVENT,
+    #         id=2283,
+    #         context={
+    #             'id':74
+    #         },
+    #         recursive=True
+    #     )
+    # )
+
     # for i in range(70, 80):
     #     debugSeries(i)
 
@@ -40,7 +79,7 @@ def main():
 
     # debugTeam(624) # prx
     # debugTeam(6387) # bleed
-    LOGGER.debug(SCRAPER.scrape_match(542265))
+    # LOGGER.debug(SCRAPER.scrape_match(542265))
 
 def debugTeam(team_id: int):
     team = SCRAPER.scrape_team(team_id=team_id)
@@ -74,10 +113,106 @@ def debugSeries(series_id: int):
 
             LOGGER.debug(SCRAPER.scrape_match(542279, event_id=top_event_id))
 
+def debugScraperTasks():
+    # Scrape vct-2025 series
+    SCRAPE_SCHEDULER.enqueue_task(
+        ScraperTask(
+            task_type=ScraperTaskType.SCRAPE_SERIES,
+            id=74,
+            recursive=False
+        ), 0
+    )
+
+    # Scrape vct champs 2025 event
+    SCRAPE_SCHEDULER.enqueue_task(
+        ScraperTask(
+            task_type=ScraperTaskType.SCRAPE_EVENT,
+            id=2283,
+            context={
+                "id": 74
+            },
+            recursive=False
+        ), 0
+    )
+
+    # Scrape vct champs 2025 first few games of the group stage
+    SCRAPE_SCHEDULER.enqueue_task(
+        ScraperTask(
+            task_type=ScraperTaskType.SCRAPE_MATCH,
+            id=542265,
+            context={
+                "id":2283
+            },
+            recursive=False
+        ), 0
+    )
+    SCRAPE_SCHEDULER.enqueue_task(
+        ScraperTask(
+            task_type=ScraperTaskType.SCRAPE_MATCH,
+            id=542266,
+            context={
+                "id":2283
+            },
+            recursive=False
+        ), 0
+    )
+    SCRAPE_SCHEDULER.enqueue_task(
+        ScraperTask(
+            task_type=ScraperTaskType.SCRAPE_MATCH,
+            id=542267,
+            context={
+                "id":2283
+            },
+            recursive=False
+        ), 0
+    )
+    SCRAPE_SCHEDULER.enqueue_task(
+        ScraperTask(
+            task_type=ScraperTaskType.SCRAPE_MATCH,
+            id=542268,
+            context={
+                "id":2283
+            },
+            recursive=False
+        ), 0
+    )
+    SCRAPE_SCHEDULER.enqueue_task(
+        ScraperTask(
+            task_type=ScraperTaskType.SCRAPE_MATCH,
+            id=542269,
+            context={
+                "id":2283
+            },
+            recursive=False
+        ), 0
+    )
+
 if __name__ == "__main__":
     send_telegram_msg("vlr gg scraper is starting up!")
 
     atexit.register(send_telegram_msg, "vlr gg scraper is shutting down.")
     # parser = argparse.ArgumentParser(description="Nebby's vlr scraper")
 
-    main();
+    parser = argparse.ArgumentParser(description="vlrgg scraper tool")
+
+    parser.add_argument("--build", action="store_true", help="Will build the initial database by scraping vlr.gg from beginning to end recursively.")
+
+    args = parser.parse_args()
+
+    initialise_scraper()
+
+    if args.build:
+        do_initial_run(SCRAPER, SCRAPE_SCHEDULER)
+    else:
+        main();
+
+    try:
+        while True:
+            time.sleep(300) # Sleep for 300 seconds
+
+            # Write to db
+            results: Dict[str, VLRResult] = SCRAPE_SCHEDULER.get_result_set()
+            bulk_insert_results(results)
+
+    except KeyboardInterrupt:
+        LOGGER.info("Shutting down...")

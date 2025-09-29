@@ -127,6 +127,7 @@ def scrape_team_socials(root: Tag | str, team_id: int | None) -> list[str]:
         href = link.get("href")
         href = href.strip()
 
-        socials.append(href)
+        if len(href) > 0:
+            socials.append(href)
     
     return socials
