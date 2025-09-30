@@ -1,15 +1,16 @@
 import json
 import logging
 import os
-from typing import Dict
+from typing import Dict, List
 from urllib.parse import urljoin
 
 import requests
 
 from private_api_utils.private_api_utils import serializer, vlr_result_list_to_dict
+from scraper.entities import VLRResult
+from logging_config import PRIVATE_API_LOGGER as LOGGER
 
 BASE_URL = os.getenv("PRIVATE_API_BASE_URL")
-LOGGER = logging.getLogger("Private API")
 
 def bulk_insert(endpoint: str, payload: Dict[str, any]) -> requests.Response:
     ATTEMPTS = 10
@@ -51,8 +52,9 @@ def bulk_insert_matches(matches_dict: Dict[str, any]) -> requests.Response:
     }
     return bulk_insert("match/bulk", payload)
 
-def bulk_insert_results(result_dict: Dict[str, any]) -> requests.Response | None:
-    if not {"series", "team", "event", "match"}.issubset(result_dict.keys()):
+def bulk_insert_results(result_dict: Dict[str, any]) -> List[tuple[str, Dict[str, any]]]:
+    result_name_set = {"series", "team", "event", "match"}
+    if not result_name_set.issubset(result_dict.keys()):
         LOGGER.error("Invalid result dictionary received. Cannot bulk insert results.")
         return None
 
@@ -61,7 +63,11 @@ def bulk_insert_results(result_dict: Dict[str, any]) -> requests.Response | None
     res_event = bulk_insert_events(result_dict["event"])
     res_match = bulk_insert_matches(result_dict["match"])
 
-    for result in (res_series, res_team, res_event, res_match):
+    failed_payloads: List[tuple[str, Dict[str, any]]] = []
+    for i, result in enumerate([res_series, res_team, res_event, res_match]):
         if not result.ok:
-            LOGGER.error("Got bad status code %s for %s", result.status_code, result)
+            LOGGER.error("Got bad status code %s for %s", result.status_code, result.text)
             # TODO: Store all these results to later reattempt.
+            failed_payloads.extend((result_name_set[i], result_dict))
+    
+    return failed_payloads

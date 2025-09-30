@@ -28,7 +28,7 @@ class ScrapeScheduler():
         self._task_queue: PriorityQueue[Tuple[int, ScraperTask]] = PriorityQueue()
         self._task_counter = count()
         self._is_completing_scraper_tasks = False
-        self._task_thread_pool_executor = ThreadPoolExecutor(max_workers=10)
+        self._task_thread_pool_executor = ThreadPoolExecutor(max_workers=20)
 
         self._results_lock = threading.Lock()
         self._result_store = ResultStore(self._results_lock)

@@ -10,9 +10,13 @@ services:
     volumes:
       - .:/app
     networks:
-      vlr_scraper_net:
-        driver: bridge
+      - vlr_scraper_net
     ports:
       - "8000:8000"
     env_file:
       - .env
+
+networks:
+  vlr_scraper_net:
+    name: vlr_scraper_net
+    driver: bridge

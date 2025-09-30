@@ -16,7 +16,16 @@ def do_initial_run(SCRAPER: VLRScraper, SCRAPE_SCHEDULER: ScrapeScheduler):
     #         ), 100
     #     )
 
-    for id in range(1, 5):
+    # for id in range(1, 2):
+    #     SCRAPE_SCHEDULER.enqueue_task(
+    #         ScraperTask(
+    #             task_type=ScraperTaskType.SCRAPE_SERIES,
+    #             id=id,
+    #             recursive=True,
+    #         ), 100
+    #     )
+
+    for id in range(2, 20):
         SCRAPE_SCHEDULER.enqueue_task(
             ScraperTask(
                 task_type=ScraperTaskType.SCRAPE_SERIES,

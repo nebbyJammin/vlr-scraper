@@ -2,7 +2,7 @@ import os
 import logging
 import threading
 import requests
-from logging_config import VLR_LOGGER, PG_LOGGER, MAIN_LOGGER
+from logging_config import VLR_LOGGER, PG_LOGGER, MAIN_LOGGER, UTIL_LOGGER, PRIVATE_API_LOGGER
 
 USE_TELEGRAM = os.getenv("USE_TELEGRAM", "false").lower() in ("true", "1", "yes")
 TELEGRAM_TOKEN = os.getenv("TELEGRAM_TOKEN")
@@ -18,7 +18,7 @@ def send_telegram_msg(message: str):
         return
 
     if not CHAT_IDS:
-        logging.getLogger("Telegram Utils").warning("No chat IDs configured, skipping the Telegram message.")
+        UTIL_LOGGER.warning("No chat IDs configured, skipping the Telegram message.")
         return 
 
     for CHAT_ID in CHAT_IDS:
@@ -28,7 +28,7 @@ def send_telegram_msg(message: str):
                 break
             except Exception as e:
                 if attempt == 2:
-                    logging.getLogger("Telegram Utils").warning("Failed to send Telegram message: %s", e)
+                    UTIL_LOGGER.warning("Failed to send Telegram message: %s", e)
 
 def send_telegram_msg_threaded(message: str):
     threading.Thread(target=send_telegram_msg, args=(message,), daemon=True).start()
@@ -49,15 +49,15 @@ def test_telegram_token():
         response = requests.get(GET_ME_URL, timeout=5)
         json_resp = response.json()
         if json_resp.get("ok"):
-            logging.getLogger("Telegram Utils").info("Telegram token successfully verified.")
+            UTIL_LOGGER.info("Telegram token successfully verified.")
             return True
     except Exception as e:
-        logging.getLogger("Telegram Utils").error(f"Failed to verify Telegram token: {e}")
+        UTIL_LOGGER.error(f"Failed to verify Telegram token: {e}")
     return False
 
 if USE_TELEGRAM:
     test_telegram_token()
     telegram_handler = TelegramHandler()
     telegram_handler.setFormatter(logging.Formatter("Error received from Scraper: %(message)s"))
-    for logger in (VLR_LOGGER, PG_LOGGER, MAIN_LOGGER):
+    for logger in (VLR_LOGGER, PG_LOGGER, MAIN_LOGGER, UTIL_LOGGER, PRIVATE_API_LOGGER):
         logger.addHandler(telegram_handler)

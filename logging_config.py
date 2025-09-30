@@ -2,12 +2,8 @@ import logging
 from logging.handlers import TimedRotatingFileHandler
 
 import os
-from dotenv import load_dotenv
 
 def initialise_logger() -> tuple[logging.Logger, logging.Logger, logging.Logger]:
-    # Load variables from .env
-    load_dotenv()
-
     #  Get log settings from env
     LOG_DIR = os.getenv("LOG_DIR", "logs")
     LOG_LEVEL = os.getenv("LOG_LEVEL", "INFO")
@@ -62,13 +58,15 @@ def initialise_logger() -> tuple[logging.Logger, logging.Logger, logging.Logger]
     MAIN_LOGGER = logging.getLogger("Main")
     VLR_LOGGER = logging.getLogger("VLR Scraper")
     PG_LOGGER = logging.getLogger("PG Logger")
+    PRIVATE_API_LOGGER = logging.getLogger("PRIVATE API")
+    UTIL_LOGGER = logging.getLogger("VLR Utils")
 
     # TODO: Remove -> Silent noisy library
     logging.getLogger("urllib3.connectionpool").setLevel(logging.WARNING)
 
-    return MAIN_LOGGER, VLR_LOGGER, PG_LOGGER
+    return MAIN_LOGGER, VLR_LOGGER, PG_LOGGER, PRIVATE_API_LOGGER, UTIL_LOGGER
 
 if __name__ != "__main__":
-    MAIN_LOGGER, VLR_LOGGER, PG_LOGGER = initialise_logger()
+    MAIN_LOGGER, VLR_LOGGER, PG_LOGGER, PRIVATE_API_LOGGER, UTIL_LOGGER = initialise_logger()
 
     MAIN_LOGGER.info("Loggers have been successfully created!")

@@ -1,3 +1,10 @@
+import pickle
+from dotenv import load_dotenv
+
+from private_api_utils.private_api_utils import serializer
+
+load_dotenv()
+
 import argparse
 import atexit
 from enum import Enum
@@ -11,7 +18,7 @@ import psycopg2
 import requests
 
 from logging_config import MAIN_LOGGER as LOGGER
-from private_api_utils.private_api_bulk import bulk_insert_events, bulk_insert_matches, bulk_insert_results, bulk_insert_series, bulk_insert_teams
+from private_api_utils.private_api_bulk import bulk_insert_results
 from scheduler.scraper_scheduler import ScrapeScheduler
 from scheduler.scraper_tasks import ScraperTask, ScraperTaskType
 from scraper.entities import VLRResult, VLRSeries, VLRTeam
@@ -206,29 +213,21 @@ if __name__ == "__main__":
     else:
         main();
 
-    failed_payloads = List[Dict[str, VLRResult]]
+    failed_payloads: List[tuple[str, Dict[str, any]]] = []
     try:
         while True:
-            time.sleep(100) # Sleep for 100 seconds
+            time.sleep(60) # Sleep for 100 seconds
 
             # Write to db
             results: Dict[str, VLRResult] = SCRAPE_SCHEDULER.get_result_set()
-            res = bulk_insert_results(results)
+            failed_payloads = bulk_insert_results(results)
 
-            if not res:
-                LOGGER.error("Failed to bulk insert. No response object for %s. Likely due to network timeout.", results)
-                failed_payloads.append(results)
-            elif not res.ok:
-                LOGGER.error("Received error message from bulk insertion %s. Code: %s", res, res.code)
-                LOGGER.error("Erroneous result set: ", results)
+            failed_payloads.extend(failed_payloads)
 
     except KeyboardInterrupt:
         LOGGER.info("Shutting down...")
     
-    for payload in failed_payloads:
-        res = bulk_insert_results(results) # Reattempt insertion
-        if not res:
-            LOGGER.error("Failed to bulk insert. No response object for %s. Likely due to network timeout.", results)
-        elif not res.ok:
-            LOGGER.error("Received error message from bulk insertion %s. Code: %s", res, res.code)
-            LOGGER.error("Erroneous result set: ", results)
+    if len(failed_payloads) > 0:
+        filename = f"data_{datetime.now().strftime('%Y%m%d_%H%M%S')}.pkl"
+        with open(f"failed_payloads/{filename}", "wb") as f:
+            pickle.dump(failed_payloads, f)
