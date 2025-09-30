@@ -212,7 +212,15 @@ if __name__ == "__main__":
 
             # Write to db
             results: Dict[str, VLRResult] = SCRAPE_SCHEDULER.get_result_set()
-            bulk_insert_results(results)
+            res = bulk_insert_results(results)
+
+            if not res:
+                LOGGER.error("Failed to bulk insert. No response object for %s. Likely due to network timeout.", results)
+                # TODO: Store failed bulk insert due to network timeout
+            elif not res.ok:
+                # Error
+                LOGGER.error("Received error message from bulk insertion %s. Code: %s", res, res.code)
+                LOGGER.error("Erroneous result set: ", results)
 
     except KeyboardInterrupt:
         LOGGER.info("Shutting down...")

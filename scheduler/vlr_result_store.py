@@ -40,6 +40,29 @@ class ResultStore():
     def get_seen_team_ids(self) -> Set[int]:
         return self._seen_team_ids
     
+    def remove_task_from_seen(self, task: ScraperTask) -> bool:
+        already_scraped_set: Set[int]
+
+        with self._results_lock:
+            match task.task_type:
+                case ScraperTaskType.SCRAPE_SERIES:
+                    already_scraped_set = self._seen_series_ids
+                case ScraperTaskType.SCRAPE_EVENT:
+                    already_scraped_set = self._seen_event_ids
+                case ScraperTaskType.SCRAPE_MATCH:
+                    already_scraped_set = self._seen_match_ids
+                case ScraperTaskType.SCRAPE_TEAM:
+                    already_scraped_set = self._seen_team_ids
+                case _:
+                    LOGGER.error("Failed to add VLR")
+                    return False
+                
+            if task.id in already_scraped_set:
+                already_scraped_set.remove(task.id)
+                return True
+            else:
+                return False
+    
     def try_enqueue_task(self, task: ScraperTask) -> bool:
         already_scraped_set: Set[int]
 

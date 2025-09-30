@@ -110,6 +110,9 @@ class ScrapeScheduler():
             count_id: int = next(self._task_counter)
             self._task_queue.put((-priority, count_id, task))
     
+    def remove_task_from_seen(self, task: ScraperTask):
+        self._result_store.remove_task_from_seen(task)
+    
     def get_task_qsize(self) -> int:
         """Calls queue.qsize(). Is unreliable (Not thread safe)."""
         return self._task_queue.qsize()
@@ -119,16 +122,25 @@ class ScrapeScheduler():
 
         if task.task_type == ScraperTaskType.SCRAPE_SERIES:
             LOGGER.info(f"Scraping series task {task.id, task}")
-            self._handle_scrape_series_task(task)
+            success = self._handle_scrape_series_task(task)
         elif task.task_type == ScraperTaskType.SCRAPE_EVENT:
             LOGGER.info(f"Scraping event task {task.id, task}")
-            self._handle_scrape_event_task(task)
+            success = self._handle_scrape_event_task(task)
         elif task.task_type == ScraperTaskType.SCRAPE_MATCH:
             LOGGER.info(f"Scraping match task {task.id, task}")
-            self._handle_scrape_match_task(task)
+            success = self._handle_scrape_match_task(task)
         elif task.task_type == ScraperTaskType.SCRAPE_TEAM:
             LOGGER.info(f"Scraping team task {task.id, task}")
-            self._handle_scrape_team_task(task)
+            success = self._handle_scrape_team_task(task)
+        
+        if not success:
+            LOGGER.error("Unsuccessful scrape for task %s. Attempting to remove from seen list.", task)
+            removed = self.remove_task_from_seen(task)
+            if removed:
+                LOGGER.info("Successfully removed from seen list.")
+            else:
+                LOGGER.warning("Failed to remove from seen list.")
+            
     
     def _handle_scrape_series_task(self, task: ScraperTask) -> bool:
         if not task.id:
@@ -153,6 +165,10 @@ class ScrapeScheduler():
                         ),
                         priority=10
                     )
+
+            return True
+        else:
+            return False
     
     def _handle_scrape_event_task(self, task: ScraperTask) -> bool:
         if not task.id:

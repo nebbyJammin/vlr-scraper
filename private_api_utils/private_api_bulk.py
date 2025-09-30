@@ -12,12 +12,19 @@ BASE_URL = os.getenv("PRIVATE_API_BASE_URL")
 LOGGER = logging.getLogger("Private API")
 
 def bulk_insert(endpoint: str, payload: Dict[str, any]) -> requests.Response:
-    response = requests.post(
-        url=urljoin(BASE_URL, endpoint),
-        data=json.dumps(payload, default=serializer),
-        headers={"Content-Type": "application/json"},
-    )
-    return response
+    ATTEMPTS = 10
+    for attempt in range(ATTEMPTS):
+        try:
+            response = requests.post(
+                url=urljoin(BASE_URL, endpoint),
+                data=json.dumps(payload, default=serializer),
+                headers={"Content-Type": "application/json"},
+            )
+            return response
+        except Exception as e:
+            if attempt == ATTEMPTS - 1:
+                LOGGER.error("Failed to bulk insert at PRIVATE_API endpoint after %s attempts", ATTEMPTS)
+                return None
 
 def bulk_insert_series(series_dict: Dict[str, any]) -> requests.Response:
     payload = {

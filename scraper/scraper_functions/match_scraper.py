@@ -26,7 +26,7 @@ def scrape_match_name(root: Tag | BeautifulSoup | str, match_id: int | None) -> 
         stage_name = stage_round_components[0].strip()
         tournament_round_name = stage_round_components[1].strip()
     else:
-        if stage_round_components > 2:
+        if len(stage_round_components) > 2:
             stage_name = stage_round_components[0].strip()
             tournament_round_name = ""
             for i in range(1, len(stage_round_components)):
