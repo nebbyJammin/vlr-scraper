@@ -19,6 +19,7 @@ def bulk_insert(endpoint: str, payload: Dict[str, any]) -> requests.Response:
                 url=urljoin(BASE_URL, endpoint),
                 data=json.dumps(payload, default=serializer),
                 headers={"Content-Type": "application/json"},
+                timeout=5,
             )
             return response
         except Exception as e:
