@@ -206,9 +206,10 @@ if __name__ == "__main__":
     else:
         main();
 
+    failed_payloads = List[Dict[str, VLRResult]]
     try:
         while True:
-            time.sleep(300) # Sleep for 300 seconds
+            time.sleep(100) # Sleep for 100 seconds
 
             # Write to db
             results: Dict[str, VLRResult] = SCRAPE_SCHEDULER.get_result_set()
@@ -216,11 +217,18 @@ if __name__ == "__main__":
 
             if not res:
                 LOGGER.error("Failed to bulk insert. No response object for %s. Likely due to network timeout.", results)
-                # TODO: Store failed bulk insert due to network timeout
+                failed_payloads.append(results)
             elif not res.ok:
-                # Error
                 LOGGER.error("Received error message from bulk insertion %s. Code: %s", res, res.code)
                 LOGGER.error("Erroneous result set: ", results)
 
     except KeyboardInterrupt:
         LOGGER.info("Shutting down...")
+    
+    for payload in failed_payloads:
+        res = bulk_insert_results(results) # Reattempt insertion
+        if not res:
+            LOGGER.error("Failed to bulk insert. No response object for %s. Likely due to network timeout.", results)
+        elif not res.ok:
+            LOGGER.error("Received error message from bulk insertion %s. Code: %s", res, res.code)
+            LOGGER.error("Erroneous result set: ", results)
