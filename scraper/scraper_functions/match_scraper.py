@@ -118,12 +118,16 @@ def scrape_match_date(root: Tag | BeautifulSoup | str, match_id: int | None) -> 
 
     if date_start_tag:
         date_start_str = date_start_tag.get("data-utc-ts") # Will return something like 2025-09-25 09:00:00
+
         if date_start_str:
+            if date_start_str == "0000-00-00 00:00:00": # Extremely odd case where the match is complete, but completed at an unknown time -> see match id 528615
+                return None
+
             try:
                 VLR_UTC_OFFSET = timedelta(hours=4) # vlr page gives time meta data in UTC-4
                 date_start = datetime.strptime(date_start_str, "%Y-%m-%d %H:%M:%S").replace(tzinfo=timezone.utc) + VLR_UTC_OFFSET # add 4 hours to properly convert to UTC time
             except Exception as e:
-                LOGGER.error(f"Failed to parse '{date_start_str}' as a datetime object for match id '{match_id}'")
+                LOGGER.error(f"Failed to parse '{date_start_str}' as a datetime object for match id '{match_id}'", exc_info=True)
                 date_start = None
     
     return date_start

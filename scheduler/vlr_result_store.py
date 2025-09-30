@@ -25,6 +25,21 @@ class ResultStore():
 
         self._results_lock = results_lock
     
+    def get_lock(self) -> threading.Lock:
+        return self._results_lock
+    
+    def get_seen_series_ids(self) -> Set[int]:
+        return self._seen_series_ids
+
+    def get_seen_event_ids(self) -> Set[int]:
+        return self._seen_event_ids
+
+    def get_seen_match_ids(self) -> Set[int]:
+        return self._seen_match_ids
+
+    def get_seen_team_ids(self) -> Set[int]:
+        return self._seen_team_ids
+    
     def try_enqueue_task(self, task: ScraperTask) -> bool:
         already_scraped_set: Set[int]
 
