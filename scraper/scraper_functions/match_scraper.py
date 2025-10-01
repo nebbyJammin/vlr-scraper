@@ -54,48 +54,56 @@ def scrape_match_status(root: Tag | BeautifulSoup | str, match_id: int | None) -
     if not match_header_container:
         LOGGER.error(f"Could not find the match score container for match id {match_id}")
         return CompletionStatus.UNKNOWN, None, None
-    else:
-        match_placeholder_tag = match_header_container.find("div", class_="match-header-vs-placeholder")
 
-        if match_placeholder_tag:
-            match_status = CompletionStatus.UPCOMING
-            score_1 = None
-            score_2 = None
+    match_placeholder_tag = match_header_container.find("div", class_="match-header-vs-placeholder")
+
+    # Matches with unknown score will have a match-header-vs-placeholder
+    if match_placeholder_tag:
+        match_status = CompletionStatus.UPCOMING
+        # Upcoming -> No score
+        return match_status, None, None
+
+    # Every game has a note -> either time until match, LIVE or FINAL
+    match_header_vs_notes: List[Tag] = match_header_container.findAll("div", class_="match-header-vs-note")
+
+    if len(match_header_vs_notes) >= 1:
+        first_header_note = match_header_vs_notes[0]
+        first_header_text: str = first_header_note.text.strip().lower()
+        # Completed match will always have the FINAL label on it
+        if first_header_text == "final" or "forfeit" in first_header_text or "cancel" in first_header_text:
+            match_status = CompletionStatus.COMPLETED
+        elif first_header_text == "live":
+            match_status = CompletionStatus.ONGOING
         else:
-            # Completed match will have one score tag with classname match-header-vs-winner
-            winner_loser_team_tags = match_header_container.findAll("span", class_=["match-header-vs-score-winner", "match-header-vs-score-loser"])
+            # At this point, it can't be upcoming, so must be unknown
+            match_status = CompletionStatus.UNKNOWN
 
-            if len(winner_loser_team_tags) == 2:
-                match_status = CompletionStatus.COMPLETED
+    # Only try scrape score if we know that the match is completed or ongoing
+    if match_status == CompletionStatus.COMPLETED or match_status == CompletionStatus.ONGOING:
+        js_spoiler = match_header_container.find("div", class_="js-spoiler")
+        if not js_spoiler:
+            LOGGER.error(f"Failed to find match scores for match id '{match_id}'")
+            return match_status, None, None
 
-                score_1_tag, score_2_tag = winner_loser_team_tags
+        score_tags = js_spoiler.findAll("span", attrs=lambda x: x is None or 'match-header-vs-score-colon' not in x.split())
+        if len(score_tags) == 2:
+            score_1_tag, score_2_tag = score_tags
                     
-                score_1_str = score_1_tag.text.strip()
-                score_2_str = score_2_tag.text.strip()
+            score_1_str = score_1_tag.text.strip()
+            score_2_str = score_2_tag.text.strip()
                     
-                try:
-                    score_1 = int(score_1_str)
-                    score_2 = int(score_2_str)
-                except Exception as e:
-                    LOGGER.error(f"Found scores for game with match id of '{match_id}' but could not parse score as an int (score_1='{score_1_str}', score_2='{score_2_str}')")
-                    return None, None, None
-            elif len(winner_loser_team_tags) != 0:
-                LOGGER.error(f"Could not find score of a game that should have a score (match id of '{match_id}').")
-                return None, None, None
-            else:
-                # match_live_tag = match_header_container.find("span", class_=lambda x: x is None) # Ensure we only select span with no class names
-                match_live_tag = next(
-                    (
-                        t for t in match_header_container.find_all("span") if t.has_attr("class") and not t.get("class")
-                    ),
-                        None)
+            try:
+                score_1 = int(score_1_str)
+            except Exception as e:
+                LOGGER.warning(f"Found scores for game with match id of '{match_id}' but could not parse score_1 as an int (score_1='{score_1_str}')")
 
-                # Score is represented by span with no classnames
-                if match_live_tag:
-                    match_status = CompletionStatus.ONGOING
-                else:
-                    LOGGER.error(f"Could not find the match status of match id '{match_id}'")
-                    match_status = CompletionStatus.UNKNOWN
+            try:
+                score_2 = int(score_2_str)
+            except Exception as e:
+                LOGGER.warning(f"Found scores for game with match id of '{match_id}' but could not parse score_2 as an int (score_2='{score_2_str}')")
+        else:
+            LOGGER.error(f"Could not find score of a game that should have a score (match id of '{match_id}').")
+            return CompletionStatus.UNKNOWN, None, None
     
     return match_status, score_1, score_2
 
@@ -142,22 +150,22 @@ def scrape_match_dependent_teams(root: Tag | BeautifulSoup | str, match_id: int 
     if len(match_header_links) > 2:
         LOGGER.error(f"More than 2 match header link tags scraped, and therefore, cannot infer the teams involved for match id '{match_id}'")
         return None, None
-    elif len(match_header_links) == 2:
+    elif len(match_header_links) >= 1:
         team_1_tag = match_header_links[0]
-        team_2_tag = match_header_links[1]
-
         team_1_str = team_1_tag.get("href", None)
+
+        team_2_tag = match_header_links[1]
         team_2_str = team_2_tag.get("href", None)
 
         try:
             if team_1_str:
-                team_1_id = get_id_from_url(VLRScraperMode.MATCH, team_1_str)
+                team_1_id = get_id_from_url(VLRScraperMode.TEAM, team_1_str)
         except Exception:
             team_1_id = None
-                
+        
         try:
             if team_2_str:
-                team_2_id = get_id_from_url(VLRScraperMode.MATCH, team_2_str)
+                team_2_id = get_id_from_url(VLRScraperMode.TEAM, team_2_str)
         except Exception:
             team_2_id = None
     else:

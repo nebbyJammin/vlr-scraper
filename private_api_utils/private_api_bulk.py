@@ -9,15 +9,15 @@ import requests
 from private_api_utils.private_api_utils import serializer, vlr_result_list_to_dict
 from scraper.entities import VLRResult
 from logging_config import PRIVATE_API_LOGGER as LOGGER
+from private_api_utils.private_api_utils import PRIVATE_API_BASE_URL
 
-BASE_URL = os.getenv("PRIVATE_API_BASE_URL")
 
 def bulk_insert(endpoint: str, payload: Dict[str, any]) -> requests.Response:
     ATTEMPTS = 10
     for attempt in range(ATTEMPTS):
         try:
             response = requests.post(
-                url=urljoin(BASE_URL, endpoint),
+                url=urljoin(PRIVATE_API_BASE_URL, endpoint),
                 data=json.dumps(payload, default=serializer),
                 headers={"Content-Type": "application/json"},
                 timeout=10,

@@ -21,14 +21,14 @@ class ScrapeScheduler():
     MIN_SLEEP_TIME = 0.5
     MAX_SLEEP_TIME = 2
 
-    def __init__(self, VLR_Scraper: VLRScraper):
+    def __init__(self, VLR_Scraper: VLRScraper, max_workers: int = 20):
         self._scraper = VLR_Scraper
         self._random = random.Random(time.time())
 
         self._task_queue: PriorityQueue[Tuple[int, ScraperTask]] = PriorityQueue()
         self._task_counter = count()
         self._is_completing_scraper_tasks = False
-        self._task_thread_pool_executor = ThreadPoolExecutor(max_workers=18)
+        self._task_thread_pool_executor = ThreadPoolExecutor(max_workers=max_workers)
 
         self._results_lock = threading.Lock()
         self._result_store = ResultStore(self._results_lock)

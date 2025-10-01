@@ -3,7 +3,7 @@ from logging.handlers import TimedRotatingFileHandler
 
 import os
 
-def initialise_logger() -> tuple[logging.Logger, logging.Logger, logging.Logger]:
+def initialise_logger() -> tuple[logging.Logger, logging.Logger, logging.Logger, logging.Logger, logging.Logger]:
     #  Get log settings from env
     LOG_DIR = os.getenv("LOG_DIR", "logs")
     LOG_LEVEL = os.getenv("LOG_LEVEL", "INFO")

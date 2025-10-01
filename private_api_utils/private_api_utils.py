@@ -1,8 +1,11 @@
 from datetime import date, datetime
 from enum import Enum
 import json
+import os
 from typing import Dict, List
 from scraper.entities import VLRResult
+
+PRIVATE_API_BASE_URL = os.getenv("PRIVATE_API_BASE_URL")
 
 def vlr_result_list_to_json(list: List[VLRResult]) -> str:
     return json.dumps([result.to_json() for result in list], default=str)

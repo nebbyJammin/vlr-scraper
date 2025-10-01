@@ -1,8 +1,6 @@
 import pickle
 from dotenv import load_dotenv
 
-from private_api_utils.private_api_utils import serializer
-
 load_dotenv()
 
 import argparse
@@ -19,12 +17,15 @@ import requests
 
 from logging_config import MAIN_LOGGER as LOGGER
 from private_api_utils.private_api_bulk import bulk_insert_results
+from private_api_utils.private_api_routine import get_high_priority_tasks_routine, get_low_priority_tasks_routine
+from private_api_utils.private_api_utils import serializer
 from scheduler.scraper_scheduler import ScrapeScheduler
 from scheduler.scraper_tasks import ScraperTask, ScraperTaskType
 from scraper.entities import VLRResult, VLRSeries, VLRTeam
 from scraper.scraper import VLRScraper, VLRScraperOptions
 from scraping_services.initial_run import do_initial_run
 from telegram_notify.telegram_utils import send_telegram_msg
+from apscheduler.schedulers.background import BackgroundScheduler
 
 SCRAPER: VLRScraper
 SCRAPE_SCHEDULER: ScrapeScheduler
@@ -46,153 +47,39 @@ def initialise_scraper():
     )
 
     SCRAPER = VLRScraper(SCRAPER_OPTIONS)
-    SCRAPE_SCHEDULER = ScrapeScheduler(SCRAPER)
+    SCRAPE_SCHEDULER = ScrapeScheduler(SCRAPER, NUM_SCRAPER_WORKERS)
 
-def main():
+def handle_high_priority_tasks():
     global SCRAPER, SCRAPE_SCHEDULER
 
-    SCRAPE_SCHEDULER.enqueue_task(
-        ScraperTask(
-            task_type=ScraperTaskType.SCRAPE_SERIES,
-            id=85,
-            recursive=False
-        )
-    )
+    tasks = get_high_priority_tasks_routine()
 
-    # SCRAPE_SCHEDULER.enqueue_task(
-    #     ScraperTask(
-    #         task_type=ScraperTaskType.SCRAPE_SERIES,
-    #         id=74,
-    #         recursive=False
-    #     )
-    # )
-    # SCRAPE_SCHEDULER.enqueue_task(
-    #     ScraperTask(
-    #         task_type=ScraperTaskType.SCRAPE_EVENT,
-    #         id=2283,
-    #         context={
-    #             'id':74
-    #         },
-    #         recursive=True
-    #     )
-    # )
+    for task in tasks:
+        SCRAPE_SCHEDULER.enqueue_task(task, task.context.get("priority", 1))
 
-    # for i in range(70, 80):
-    #     debugSeries(i)
+def handle_low_priority_tasks():
+    global SCRAPER, SCRAPE_SCHEDULER
 
-    # debugSeries(79) # project-v
-    # debugSeries(74) # vct-2025
-    # debugSeries(4) # none
+    tasks = get_low_priority_tasks_routine()
 
-    # debugTeam(624) # prx
-    # debugTeam(6387) # bleed
-    # LOGGER.debug(SCRAPER.scrape_match(542265))
+    for task in tasks:
+        SCRAPE_SCHEDULER.enqueue_task(task, task.context.get("priority", 0))
 
-def debugTeam(team_id: int):
-    team = SCRAPER.scrape_team(team_id=team_id)
+def main():
+    global SCRAPER, SCRAPE_SCHEDULE, HIGH_PRIORITY_FREQUENCY, LOW_PRIORITY_FREQUENCY
 
-    LOGGER.debug(team)
+    high_priority_scheduler = BackgroundScheduler()
+    high_priority_scheduler.start()
+    high_priority_scheduler.add_job(handle_high_priority_tasks, 'interval', seconds=HIGH_PRIORITY_FREQUENCY, max_instances=1)
 
-def debugSeries(series_id: int):
-    global SCRAPER
+    atexit.register(lambda: high_priority_scheduler.shutdown(wait=False))
 
-    series, event_ids = SCRAPER.scrape_series(series_id)
-    LOGGER.debug(series)
-    # LOGGER.debug(event_ids)
+    low_priority_scheduler = BackgroundScheduler()
+    low_priority_scheduler.start()
+    low_priority_scheduler.add_job(handle_low_priority_tasks, 'interval', seconds=LOW_PRIORITY_FREQUENCY)
 
-    if series:
-        top_event_id = event_ids.pop(0)
-        event, match_ids = SCRAPER.scrape_event(top_event_id, series_id)
+    atexit.register(lambda: low_priority_scheduler.shutdown(wait=False))
 
-        LOGGER.debug(event)
-        # LOGGER.debug(match_ids)
-    
-        if event:
-            # top_match_id = match_ids.pop(0)
-            # match, team_ids = SCRAPER.scrape_match(top_match_id, top_event_id)
-
-            # LOGGER.debug(match)
-
-            # for match in match_ids:
-            #     match, team_ids = SCRAPER.scrape_match(match, top_event_id)
-
-            #     LOGGER.debug([match, team_ids])
-
-            LOGGER.debug(SCRAPER.scrape_match(542279, event_id=top_event_id))
-
-def debugScraperTasks():
-    # Scrape vct-2025 series
-    SCRAPE_SCHEDULER.enqueue_task(
-        ScraperTask(
-            task_type=ScraperTaskType.SCRAPE_SERIES,
-            id=74,
-            recursive=False
-        ), 0
-    )
-
-    # Scrape vct champs 2025 event
-    SCRAPE_SCHEDULER.enqueue_task(
-        ScraperTask(
-            task_type=ScraperTaskType.SCRAPE_EVENT,
-            id=2283,
-            context={
-                "id": 74
-            },
-            recursive=False
-        ), 0
-    )
-
-    # Scrape vct champs 2025 first few games of the group stage
-    SCRAPE_SCHEDULER.enqueue_task(
-        ScraperTask(
-            task_type=ScraperTaskType.SCRAPE_MATCH,
-            id=542265,
-            context={
-                "id":2283
-            },
-            recursive=False
-        ), 0
-    )
-    SCRAPE_SCHEDULER.enqueue_task(
-        ScraperTask(
-            task_type=ScraperTaskType.SCRAPE_MATCH,
-            id=542266,
-            context={
-                "id":2283
-            },
-            recursive=False
-        ), 0
-    )
-    SCRAPE_SCHEDULER.enqueue_task(
-        ScraperTask(
-            task_type=ScraperTaskType.SCRAPE_MATCH,
-            id=542267,
-            context={
-                "id":2283
-            },
-            recursive=False
-        ), 0
-    )
-    SCRAPE_SCHEDULER.enqueue_task(
-        ScraperTask(
-            task_type=ScraperTaskType.SCRAPE_MATCH,
-            id=542268,
-            context={
-                "id":2283
-            },
-            recursive=False
-        ), 0
-    )
-    SCRAPE_SCHEDULER.enqueue_task(
-        ScraperTask(
-            task_type=ScraperTaskType.SCRAPE_MATCH,
-            id=542269,
-            context={
-                "id":2283
-            },
-            recursive=False
-        ), 0
-    )
 
 if __name__ == "__main__":
 
@@ -203,6 +90,26 @@ if __name__ == "__main__":
 
     args = parser.parse_args()
     send_telegram_msg("vlr gg scraper is starting up!")
+
+    try:
+        BULK_INSERT_FREQUENCY = os.getenv("BULK_INSERT_FREQUENCY", 90)
+    except (TypeError, ValueError):
+        BULK_INSERT_FREQUENCY = 90
+    
+    try:
+        HIGH_PRIORITY_FREQUENCY = os.getenv("HIGH_PRIORITY_FREQUENCY", 60)
+    except (TypeError, ValueError):
+        HIGH_PRIORITY_FREQUENCY = 60
+    
+    try:
+        LOW_PRIORITY_FREQUENCY = os.getenv("LOW_PRIORITY_FREQUENCY", 21600)
+    except (TypeError, ValueError):
+        LOW_PRIORITY_FREQUENCY = 21600
+
+    try:
+        NUM_SCRAPER_WORKERS = os.getenv("NUM_SCRAPER_WORKERS", 20)
+    except (TypeError, ValueError):
+        NUM_SCRAPER_WORKERS = 20
 
     initialise_scraper()
 
@@ -216,7 +123,7 @@ if __name__ == "__main__":
     failed_payloads: List[tuple[str, Dict[str, any]]] = []
     try:
         while True:
-            time.sleep(60) # Sleep for 100 seconds
+            time.sleep(BULK_INSERT_FREQUENCY) # Sleep for 60 seconds by default
 
             # Write to db
             results: Dict[str, VLRResult] = SCRAPE_SCHEDULER.get_result_set()
