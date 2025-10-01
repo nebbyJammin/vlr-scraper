@@ -92,22 +92,22 @@ if __name__ == "__main__":
     send_telegram_msg("vlr gg scraper is starting up!")
 
     try:
-        BULK_INSERT_FREQUENCY = os.getenv("BULK_INSERT_FREQUENCY", 90)
+        BULK_INSERT_FREQUENCY = int(os.getenv("BULK_INSERT_FREQUENCY", 90))
     except (TypeError, ValueError):
         BULK_INSERT_FREQUENCY = 90
     
     try:
-        HIGH_PRIORITY_FREQUENCY = os.getenv("HIGH_PRIORITY_FREQUENCY", 60)
+        HIGH_PRIORITY_FREQUENCY = int(os.getenv("HIGH_PRIORITY_FREQUENCY", 60))
     except (TypeError, ValueError):
         HIGH_PRIORITY_FREQUENCY = 60
     
     try:
-        LOW_PRIORITY_FREQUENCY = os.getenv("LOW_PRIORITY_FREQUENCY", 21600)
+        LOW_PRIORITY_FREQUENCY = int(os.getenv("LOW_PRIORITY_FREQUENCY", 21600))
     except (TypeError, ValueError):
         LOW_PRIORITY_FREQUENCY = 21600
 
     try:
-        NUM_SCRAPER_WORKERS = os.getenv("NUM_SCRAPER_WORKERS", 20)
+        NUM_SCRAPER_WORKERS = int(os.getenv("NUM_SCRAPER_WORKERS", 20))
     except (TypeError, ValueError):
         NUM_SCRAPER_WORKERS = 20
 
