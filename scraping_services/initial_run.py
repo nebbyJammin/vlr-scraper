@@ -6,26 +6,8 @@ from scraper.scraper_utils import VLRScraperOptions
 from logging_config import MAIN_LOGGER as LOGGER
 
 def do_initial_run(SCRAPER: VLRScraper, SCRAPE_SCHEDULER: ScrapeScheduler):
-    # Testing, let's do series id 70 to current
-    # for id in range(70, 85):
-    #     SCRAPE_SCHEDULER.enqueue_task(
-    #         ScraperTask(
-    #             task_type=ScraperTaskType.SCRAPE_SERIES,
-    #             id=id,
-    #             recursive=True,
-    #         ), 100
-    #     )
-
-    # for id in range(1, 2):
-    #     SCRAPE_SCHEDULER.enqueue_task(
-    #         ScraperTask(
-    #             task_type=ScraperTaskType.SCRAPE_SERIES,
-    #             id=id,
-    #             recursive=True,
-    #         ), 100
-    #     )
-
-    for id in range(2, 20):
+    """Scans every series->event->match->team recursively. May take up to 24 hours depending on worker count + sleep time. It is recommended to have ~20 workers with average sleep time of 1s."""
+    for id in range(0,85):
         SCRAPE_SCHEDULER.enqueue_task(
             ScraperTask(
                 task_type=ScraperTaskType.SCRAPE_SERIES,

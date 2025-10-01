@@ -195,21 +195,21 @@ def debugScraperTasks():
     )
 
 if __name__ == "__main__":
-    send_telegram_msg("vlr gg scraper is starting up!")
 
     atexit.register(send_telegram_msg, "vlr gg scraper is shutting down.")
-    # parser = argparse.ArgumentParser(description="Nebby's vlr scraper")
+    parser = argparse.ArgumentParser(description="A webscraper for vlr.gg that has a focus on scraping match, team and event data. The webscraper stores scraped data into a postgres database by hitting an external API.")
 
-    parser = argparse.ArgumentParser(description="vlrgg scraper tool")
-
-    parser.add_argument("--build", action="store_true", help="Will build the initial database by scraping vlr.gg from beginning to end recursively.")
+    parser.add_argument("--build", '-b', type=int, help="Specify a count (>0). The scraper will do an initial run to build the database, by recursively scraping each series->event->match->team, starting from series id = 0, up to the series id entered.")
 
     args = parser.parse_args()
+    send_telegram_msg("vlr gg scraper is starting up!")
 
     initialise_scraper()
 
-    if args.build:
-        do_initial_run(SCRAPER, SCRAPE_SCHEDULER)
+    if args.build is not None:
+        if args.build <= 0:
+            LOGGER.error("Invalid args entered for build. Series id of %s is not valid!", args.build)
+        do_initial_run(SCRAPER, SCRAPE_SCHEDULER, args.build)
     else:
         main();
 

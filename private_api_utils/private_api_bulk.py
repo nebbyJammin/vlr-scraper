@@ -20,7 +20,7 @@ def bulk_insert(endpoint: str, payload: Dict[str, any]) -> requests.Response:
                 url=urljoin(BASE_URL, endpoint),
                 data=json.dumps(payload, default=serializer),
                 headers={"Content-Type": "application/json"},
-                timeout=5,
+                timeout=10,
             )
             return response
         except Exception as e:
@@ -53,7 +53,8 @@ def bulk_insert_matches(matches_dict: Dict[str, any]) -> requests.Response:
     return bulk_insert("match/bulk", payload)
 
 def bulk_insert_results(result_dict: Dict[str, any]) -> List[tuple[str, Dict[str, any]]]:
-    result_name_set = {"series", "team", "event", "match"}
+    result_names = ("series", "team", "event", "match")
+    result_name_set = set(result_names)
     if not result_name_set.issubset(result_dict.keys()):
         LOGGER.error("Invalid result dictionary received. Cannot bulk insert results.")
         return None
@@ -68,6 +69,6 @@ def bulk_insert_results(result_dict: Dict[str, any]) -> List[tuple[str, Dict[str
         if not result.ok:
             LOGGER.error("Got bad status code %s for %s", result.status_code, result.text)
             # TODO: Store all these results to later reattempt.
-            failed_payloads.extend((result_name_set[i], result_dict))
+            failed_payloads.extend((result_names[i], result_dict))
     
     return failed_payloads

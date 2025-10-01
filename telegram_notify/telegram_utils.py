@@ -46,7 +46,7 @@ def test_telegram_token():
     if not USE_TELEGRAM or not TELEGRAM_TOKEN:
         return False
     try:
-        response = requests.get(GET_ME_URL, timeout=5)
+        response = requests.get(GET_ME_URL, timeout=10)
         json_resp = response.json()
         if json_resp.get("ok"):
             UTIL_LOGGER.info("Telegram token successfully verified.")
