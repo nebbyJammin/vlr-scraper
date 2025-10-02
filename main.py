@@ -1,3 +1,4 @@
+import logging
 import pickle
 from dotenv import load_dotenv
 
@@ -88,6 +89,8 @@ if __name__ == "__main__":
 
     parser.add_argument("--build", '-b', type=int, help="Specify a count (>0). The scraper will do an initial run to build the database, by recursively scraping each series->event->match->team, starting from series id = 0, up to the series id entered.")
 
+    parser.add_argument("--debug", "-d", action="store_true")
+
     args = parser.parse_args()
     send_telegram_msg("vlr gg scraper is starting up!")
 
@@ -113,6 +116,9 @@ if __name__ == "__main__":
 
     initialise_scraper()
 
+    if args.debug:
+        logging.getLogger().setLevel("DEBUG")
+
     if args.build is not None:
         if args.build <= 0:
             LOGGER.error("Invalid args entered for build. Series id of %s is not valid!", args.build)
@@ -134,6 +140,7 @@ if __name__ == "__main__":
     except KeyboardInterrupt:
         LOGGER.info("Shutting down...")
     
+    os.makedirs(os.path.dirname("failed_payloads"), exist_ok=True)
     if len(failed_payloads) > 0:
         filename = f"data_{datetime.now().strftime('%Y%m%d_%H%M%S')}.pkl"
         with open(f"failed_payloads/{filename}", "wb") as f:

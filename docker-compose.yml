@@ -6,9 +6,6 @@ services:
       context: .
       dockerfile: docker/Dockerfile
     container_name: vlrscraper
-    command: python main.py
-    volumes:
-      - .:/app
     networks:
       - vlr_scraper_net
     ports:

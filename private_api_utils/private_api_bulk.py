@@ -66,7 +66,10 @@ def bulk_insert_results(result_dict: Dict[str, any]) -> List[tuple[str, Dict[str
 
     failed_payloads: List[tuple[str, Dict[str, any]]] = []
     for i, result in enumerate([res_series, res_team, res_event, res_match]):
-        if not result.ok:
+        if not result:
+            LOGGER.error("Got no response for %s", result_names[i])
+            failed_payloads.extend((result_names[i], result_dict))
+        elif not result.ok:
             LOGGER.error("Got bad status code %s for %s", result.status_code, result.text)
             # TODO: Store all these results to later reattempt.
             failed_payloads.extend((result_names[i], result_dict))

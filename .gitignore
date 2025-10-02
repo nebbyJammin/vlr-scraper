@@ -148,7 +148,7 @@ activemq-data/
 *.sage.py
 
 # Environments
-.env
+*.env
 .envrc
 .venv
 env/
@@ -220,6 +220,7 @@ logs/
 
 # Credentials, like keys
 credentials/
+.ssh/
 
 # VSCodeCounter
 .VSCodeCounter/

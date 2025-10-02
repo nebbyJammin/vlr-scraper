@@ -1,0 +1,7 @@
+services:
+  app:
+    volumes:
+      - .:/app
+    command: python main.py
+    env_file:
+      - .env

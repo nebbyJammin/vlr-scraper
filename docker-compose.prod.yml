@@ -1,0 +1,5 @@
+services:
+  app:
+    command: /app/start.sh
+    env_file:
+      - prod.env
