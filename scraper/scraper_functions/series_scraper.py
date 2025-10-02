@@ -51,7 +51,7 @@ def scrape_series_status(root: Tag | str, series_id: int | None) -> CompletionSt
             series_status = CompletionStatus.COMPLETED
         else:
             # Check the event status of the top event
-            top_event_status_tag = next_upcoming_event.find("span", class_="event-item-desc-item-status", text=pattern)
+            top_event_status_tag = next_upcoming_event.find("span", class_="event-item-desc-item-status")
 
             if top_event_status_tag is None:
                 series_status = CompletionStatus.COMPLETED
