@@ -44,7 +44,7 @@ class VLREvent(ScrapableEntry):
     vlr_id: int
     name: str
     status: CompletionStatus
-    series_id: int
+    series_id: Optional[str]
     region: Optional[str]
     location_long: Optional[str]
     tags: List[str]

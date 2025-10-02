@@ -1,5 +1,3 @@
-import logging
-import pickle
 from dotenv import load_dotenv
 
 load_dotenv()
@@ -7,24 +5,24 @@ load_dotenv()
 import argparse
 import atexit
 from enum import Enum
-import json
 import os
 import time
 from datetime import date, datetime, timedelta, timezone
-from typing import Dict, List
+from typing import Dict, List, Set
 
-import psycopg2
-import requests
+import logging
+import pickle
 
 from logging_config import MAIN_LOGGER as LOGGER
 from private_api_utils.private_api_bulk import bulk_insert_results
 from private_api_utils.private_api_routine import get_high_priority_tasks_routine, get_low_priority_tasks_routine
 from private_api_utils.private_api_utils import serializer
+from private_api_utils.probe import probed_series_diff
 from scheduler.scraper_scheduler import ScrapeScheduler
 from scheduler.scraper_tasks import ScraperTask, ScraperTaskType
 from scraper.entities import VLRResult, VLRSeries, VLRTeam
 from scraper.scraper import VLRScraper, VLRScraperOptions
-from scraping_services.initial_run import do_initial_run
+from scraping_services.initial_run import probe_series
 from telegram_notify.telegram_utils import send_telegram_msg
 from apscheduler.schedulers.background import BackgroundScheduler
 
@@ -67,19 +65,23 @@ def handle_low_priority_tasks():
         SCRAPE_SCHEDULER.enqueue_task(task, task.context.get("priority", 0))
 
 def main():
-    global SCRAPER, SCRAPE_SCHEDULE, HIGH_PRIORITY_FREQUENCY, LOW_PRIORITY_FREQUENCY
+    global SCRAPER, SCRAPE_SCHEDULER, HIGH_PRIORITY_FREQUENCY, LOW_PRIORITY_FREQUENCY, PROBE_SERIES_FREQUENCY
 
     high_priority_scheduler = BackgroundScheduler()
     high_priority_scheduler.start()
-    high_priority_scheduler.add_job(handle_high_priority_tasks, 'interval', seconds=HIGH_PRIORITY_FREQUENCY, max_instances=1)
+    high_priority_scheduler.add_job(handle_high_priority_tasks, 'interval', seconds=HIGH_PRIORITY_FREQUENCY, max_instances=1, next_run_time=datetime.now())
 
     atexit.register(lambda: high_priority_scheduler.shutdown(wait=False))
 
     low_priority_scheduler = BackgroundScheduler()
     low_priority_scheduler.start()
-    low_priority_scheduler.add_job(handle_low_priority_tasks, 'interval', seconds=LOW_PRIORITY_FREQUENCY)
+    low_priority_scheduler.add_job(handle_low_priority_tasks, 'interval', seconds=LOW_PRIORITY_FREQUENCY, next_run_time=datetime.now())
 
     atexit.register(lambda: low_priority_scheduler.shutdown(wait=False))
+
+    probe_series_scheduler = BackgroundScheduler()
+    probe_series_scheduler.start()
+    probe_series_scheduler.add_job(probe_series, 'interval', seconds=PROBE_SERIES_FREQUENCY, next_run_time=datetime.now())
 
 
 if __name__ == "__main__":
@@ -87,7 +89,7 @@ if __name__ == "__main__":
     atexit.register(send_telegram_msg, "vlr gg scraper is shutting down.")
     parser = argparse.ArgumentParser(description="A webscraper for vlr.gg that has a focus on scraping match, team and event data. The webscraper stores scraped data into a postgres database by hitting an external API.")
 
-    parser.add_argument("--build", '-b', type=int, help="Specify a count (>0). The scraper will do an initial run to build the database, by recursively scraping each series->event->match->team, starting from series id = 0, up to the series id entered.")
+    parser.add_argument("--build", '-b', nargs="?", type=int, help="Specify a count (>0). The scraper will do an initial run to build the database, by recursively scraping each series->event->match->team, starting from series id = 0, up to the series id entered OR until 10 404 responses are received. If no series id entered, then it will probe until 10 404 responses are received consecutively.", const=100000)
 
     parser.add_argument("--debug", "-d", action="store_true")
 
@@ -114,6 +116,16 @@ if __name__ == "__main__":
     except (TypeError, ValueError):
         NUM_SCRAPER_WORKERS = 20
 
+    try:
+        PROBE_SERIES_FREQUENCY = int(os.getenv("PROBE_SERIES_FREQUENCY", 172800))
+    except (TypeError, ValueError):
+        PROBE_SERIES_FREQUENCY = 172800
+    
+    try:
+        PROBE_EVENTS_FREQUENCY = int(os.getenv("PROBE_EVENT_FREQUENCY", 86400))
+    except (TypeError, ValueError):
+        PROBE_EVENTS_FREQUENCY = 86400
+
     initialise_scraper()
 
     if args.debug:
@@ -122,7 +134,8 @@ if __name__ == "__main__":
     if args.build is not None:
         if args.build <= 0:
             LOGGER.error("Invalid args entered for build. Series id of %s is not valid!", args.build)
-        do_initial_run(SCRAPER, SCRAPE_SCHEDULER, args.build)
+        # do_initial_run(SCRAPER, SCRAPE_SCHEDULER, args.build)
+        probe_series(SCRAPER, SCRAPE_SCHEDULER, args.build)
     else:
         main();
 
@@ -140,7 +153,7 @@ if __name__ == "__main__":
     except KeyboardInterrupt:
         LOGGER.info("Shutting down...")
     
-    os.makedirs(os.path.dirname("failed_payloads"), exist_ok=True)
+    os.makedirs(os.path.dirname("failed_payloads/"), exist_ok=True)
     if len(failed_payloads) > 0:
         filename = f"data_{datetime.now().strftime('%Y%m%d_%H%M%S')}.pkl"
         with open(f"failed_payloads/{filename}", "wb") as f:

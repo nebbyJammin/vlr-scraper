@@ -97,10 +97,7 @@ class VLRScraper:
         if not isinstance(event_id, int):
             LOGGER.error(f"Invalid event ID entered: '{event_id}'")
             return None, None
-        # Series ID is required to return a structurally complete VLREvent object
-        if not isinstance(series_id, int):
-            LOGGER.error(f"Invalid series ID given: '{series_id}'")
-            return None, None
+        # Series ID is not always required to return a structurally complete VLREvent object, but 99% of events have an associated series. Edge case includes some off season events that are one-off.
 
         url = get_vlr_url(f"event/{event_id}/")
         LOGGER.info(f"Scraping event with url: '{url}'")
@@ -284,4 +281,44 @@ class VLRScraper:
             socials=socials,
             date_scraped=datetime.now(timezone.utc),
         )
+
+    def probe_series(self, series_max: int | None) -> List[int]:
+        probed_series : List[int] = []
+
+        consecutive_failures = 0
+        MAXIMUM_CONSECUTIVE_FAILURES = 10
+        ATTEMPTS = 10
+        curr_series_id = 1
+
+        # Continue until we consecutively fail 10 times AND are below series_max
+        while consecutive_failures < MAXIMUM_CONSECUTIVE_FAILURES \
+            and (not series_max or curr_series_id <= series_max):
+            url = urljoin(BASE_URL, f"series/{curr_series_id}")
+            LOGGER.info("Probing %s", url)
+            for attempt in range(ATTEMPTS):
+                try:
+                    response = requests.get(url, timeout=self.timeout, headers={
+                        "User-Agent": (
+                            "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
+                            "AppleWebKit/537.36 (KHTML, like Gecko) "
+                            "Chrome/117.0.0.0 Safari/537.36"
+                        )
+                    })
+
+                    if response and response.ok:
+                        consecutive_failures = 0
+                        probed_series.append(curr_series_id)
+                        break
+                    else:
+                        consecutive_failures += 1
+                        LOGGER.info("Failed by bad status")
+                        break
+                except Exception as e:
+                    if attempt == ATTEMPTS - 1:
+                        LOGGER.info("Failed by no response")
+                        consecutive_failures += 1 
+            
+            curr_series_id += 1
+            time.sleep(1)
         
+        return probed_series
