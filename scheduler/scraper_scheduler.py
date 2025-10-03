@@ -175,11 +175,16 @@ class ScrapeScheduler():
             LOGGER.error(f"Could not begin scraper task {task}. Unknown ID given.")
             return False
 
-        if not task.context or not task.context.get("id"):
-            LOGGER.error(f"Could not begin scraper task {task}. Insufficient context given. Check if context dict is defined, and task.context[id] provides context for the dependent series.")
-            return False
+        # if not task.context or not task.context.get("id"):
+        #     LOGGER.error(f"Could not begin scraper task {task}. Insufficient context given. Check if context dict is defined, and task.context[id] provides context for the dependent series.")
+        #     return False
 
-        event, dependent_match_ids = self._scraper.scrape_event(task.id, task.context.get("id"))
+        if task.context:
+            series_id = task.context.get("id")
+        else:
+            series_id = None
+
+        event, dependent_match_ids = self._scraper.scrape_event(task.id, series_id=series_id)
 
         if event:
             self._append_result(event)

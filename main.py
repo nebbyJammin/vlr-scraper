@@ -17,17 +17,24 @@ from logging_config import MAIN_LOGGER as LOGGER
 from private_api_utils.private_api_bulk import bulk_insert_results
 from private_api_utils.private_api_routine import get_high_priority_tasks_routine, get_low_priority_tasks_routine
 from private_api_utils.private_api_utils import serializer
-from private_api_utils.probe import probed_series_diff
 from scheduler.scraper_scheduler import ScrapeScheduler
 from scheduler.scraper_tasks import ScraperTask, ScraperTaskType
 from scraper.entities import VLRResult, VLRSeries, VLRTeam
 from scraper.scraper import VLRScraper, VLRScraperOptions
-from scraping_services.initial_run import probe_series
+from scraping_services.initial_run import discover_lone_events, discover_series
 from telegram_notify.telegram_utils import send_telegram_msg
 from apscheduler.schedulers.background import BackgroundScheduler
 
 SCRAPER: VLRScraper
 SCRAPE_SCHEDULER: ScrapeScheduler
+FAILED_PAYLOADS: List[tuple[str, Dict[str, any]]] = []
+SCHEDULING_CONTEXT: Dict[str, bool] = {
+    "high_priority": True,
+    "low_priority": True,
+    "bulk_insert": True,
+    "probe_series": True,
+    "probe_events": True,
+}
 
 def initialise_scraper():
     global SCRAPER, SCRAPE_SCHEDULER
@@ -64,32 +71,46 @@ def handle_low_priority_tasks():
     for task in tasks:
         SCRAPE_SCHEDULER.enqueue_task(task, task.context.get("priority", 0))
 
+def handle_bulk_insertion():
+    global FAILED_PAYLOADS
+
+    # Write to db
+    results: Dict[str, VLRResult] = SCRAPE_SCHEDULER.get_result_set()
+    failed = bulk_insert_results(results)
+
+    FAILED_PAYLOADS.extend(failed)
+    
+
 def main():
+    register_background_tasks()
+
+def register_background_tasks():
     global SCRAPER, SCRAPE_SCHEDULER, HIGH_PRIORITY_FREQUENCY, LOW_PRIORITY_FREQUENCY, PROBE_SERIES_FREQUENCY
 
-    high_priority_scheduler = BackgroundScheduler()
-    high_priority_scheduler.start()
-    high_priority_scheduler.add_job(handle_high_priority_tasks, 'interval', seconds=HIGH_PRIORITY_FREQUENCY, max_instances=1, next_run_time=datetime.now())
+    background_scheduler = BackgroundScheduler()
+    background_scheduler.start()
 
-    atexit.register(lambda: high_priority_scheduler.shutdown(wait=False))
+    if SCHEDULING_CONTEXT["high_priority"]:
+        background_scheduler.add_job(handle_high_priority_tasks, 'interval', seconds=HIGH_PRIORITY_FREQUENCY, max_instances=1, next_run_time=datetime.now())
+    if SCHEDULING_CONTEXT["low_priority"]:
+        background_scheduler.add_job(handle_low_priority_tasks, 'interval', seconds=LOW_PRIORITY_FREQUENCY, next_run_time=datetime.now())
+    if SCHEDULING_CONTEXT["probe_series"]:
+        background_scheduler.add_job(discover_series, 'interval', seconds=PROBE_SERIES_FREQUENCY, next_run_time=datetime.now())
+    if SCHEDULING_CONTEXT["probe_events"]:
+        background_scheduler.add_job(discover_front_page_events, 'interval', seconds=PROBE_EVENTS_FREQUENCY, next_run_time=datetime.now())
+    if SCHEDULING_CONTEXT["bulk_insert"]:
+        background_scheduler.add_job(handle_bulk_insertion, 'interval', seconds=BULK_INSERT_FREQUENCY)
 
-    low_priority_scheduler = BackgroundScheduler()
-    low_priority_scheduler.start()
-    low_priority_scheduler.add_job(handle_low_priority_tasks, 'interval', seconds=LOW_PRIORITY_FREQUENCY, next_run_time=datetime.now())
-
-    atexit.register(lambda: low_priority_scheduler.shutdown(wait=False))
-
-    probe_series_scheduler = BackgroundScheduler()
-    probe_series_scheduler.start()
-    probe_series_scheduler.add_job(probe_series, 'interval', seconds=PROBE_SERIES_FREQUENCY, next_run_time=datetime.now())
-
+    atexit.register(lambda: background_scheduler.shutdown(wait=False))
 
 if __name__ == "__main__":
 
     atexit.register(send_telegram_msg, "vlr gg scraper is shutting down.")
     parser = argparse.ArgumentParser(description="A webscraper for vlr.gg that has a focus on scraping match, team and event data. The webscraper stores scraped data into a postgres database by hitting an external API.")
 
-    parser.add_argument("--build", '-b', nargs="?", type=int, help="Specify a count (>0). The scraper will do an initial run to build the database, by recursively scraping each series->event->match->team, starting from series id = 0, up to the series id entered OR until 10 404 responses are received. If no series id entered, then it will probe until 10 404 responses are received consecutively.", const=100000)
+    parser.add_argument("--build-series", nargs="?", type=int, help="Specify a count (>0). The scraper will do an initial run to build the database, by recursively scraping each series->event->match->team, starting from series id = 0, up to the series id entered OR until 10 404 responses are received. If no series id entered, then it will probe until 10 404 responses are received consecutively.", const=100000)
+
+    parser.add_argument("--build-events", action="store_true", help="Use this flag to scrape old events with no parent series. ONLY USE THIS FLAG IF YOU HAVE USED --build-series FLAG TO SCRAPE ALL series->event->match->team with a parent series. Will attempt to scrape all events up until max(event_id).")
 
     parser.add_argument("--debug", "-d", action="store_true")
 
@@ -131,30 +152,43 @@ if __name__ == "__main__":
     if args.debug:
         logging.getLogger().setLevel("DEBUG")
 
-    if args.build is not None:
-        if args.build <= 0:
-            LOGGER.error("Invalid args entered for build. Series id of %s is not valid!", args.build)
-        # do_initial_run(SCRAPER, SCRAPE_SCHEDULER, args.build)
-        probe_series(SCRAPER, SCRAPE_SCHEDULER, args.build)
+    if args.build_series:
+        if args.build_events:
+            LOGGER.error("Cannot build event and build series at the same time. Do an initial run with --build-series first (if you haven't already), then run the program with --build-event flag to scrape all events with no parent series.")
+            exit(1)
+
+        if args.build_series <= 0:
+            LOGGER.error("Invalid args entered for build. Series id of %s is not valid!", args.build_series)
+            exit(1)
+
+        SCHEDULING_CONTEXT["high_priority"] = False
+        SCHEDULING_CONTEXT["low_priority"] = False
+        SCHEDULING_CONTEXT["bulk_insert"] = True
+        SCHEDULING_CONTEXT["probe_series"] = False
+        SCHEDULING_CONTEXT["probe_events"] = False
+        discover_series(SCRAPER, SCRAPE_SCHEDULER, args.build_series)
+
+        register_background_tasks()
+    elif args.build_events:
+        SCHEDULING_CONTEXT["high_priority"] = False
+        SCHEDULING_CONTEXT["low_priority"] = False
+        SCHEDULING_CONTEXT["bulk_insert"] = True
+        SCHEDULING_CONTEXT["probe_series"] = False
+        SCHEDULING_CONTEXT["probe_events"] = False
+        discover_lone_events(SCRAPER, SCRAPE_SCHEDULER)
+
+        register_background_tasks()
     else:
         main();
 
-    failed_payloads: List[tuple[str, Dict[str, any]]] = []
     try:
         while True:
-            time.sleep(BULK_INSERT_FREQUENCY) # Sleep for 60 seconds by default
-
-            # Write to db
-            results: Dict[str, VLRResult] = SCRAPE_SCHEDULER.get_result_set()
-            failed_payloads = bulk_insert_results(results)
-
-            failed_payloads.extend(failed_payloads)
-
-    except KeyboardInterrupt:
+            time.sleep(1)
+    except KeyboardInterrupt as e:
         LOGGER.info("Shutting down...")
-    
+
     os.makedirs(os.path.dirname("failed_payloads/"), exist_ok=True)
-    if len(failed_payloads) > 0:
+    if FAILED_PAYLOADS and len(FAILED_PAYLOADS) > 0:
         filename = f"data_{datetime.now().strftime('%Y%m%d_%H%M%S')}.pkl"
         with open(f"failed_payloads/{filename}", "wb") as f:
-            pickle.dump(failed_payloads, f)
+            pickle.dump(FAILED_PAYLOADS, f)

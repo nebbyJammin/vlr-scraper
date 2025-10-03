@@ -16,7 +16,7 @@ from scraper.scraper_functions.event_scraper import scrape_event_date, scrape_ev
 from scraper.scraper_functions.match_scraper import infer_event_from_match, scrape_match_date, scrape_match_dependent_teams, scrape_match_name, scrape_match_note, scrape_match_status
 from scraper.scraper_functions.series_scraper import scrape_series_dependent_events, scrape_series_description, scrape_series_name, scrape_series_status
 from scraper.scraper_functions.team_scraper import scrape_team_logo, scrape_team_name, scrape_team_region, scrape_team_socials, scrape_team_status
-from scraper.scraper_utils import BASE_URL, SCRAPER_MODE_TO_URL_ENDPOINT, VLRScraperMode, VLRScraperOptions, get_vlr_url
+from scraper.scraper_utils import BASE_URL, SCRAPER_MODE_TO_URL_ENDPOINT, VLRScraperMode, VLRScraperOptions, get_id_from_url, get_vlr_url
 
 class VLRScraper: 
     def __init__(self, options: VLRScraperOptions | None = None):
@@ -46,6 +46,11 @@ class VLRScraper:
         for attempt in range(NUM_ATTEMPTS):
             try:
                 response = requests.get(url, timeout=self.timeout, params=headers)
+
+                if response.status_code == 404:
+                    LOGGER.warning(f"No page found for {url}: {e}", exc_info=True)
+                    return None
+
                 response.raise_for_status()
                 return response.text
             except requests.exceptions.RequestException as e:
@@ -93,7 +98,7 @@ class VLRScraper:
         ),\
         event_ids
 
-    def scrape_event(self, event_id: int, series_id: int) -> tuple[VLREvent | None, list[int] | None]:
+    def scrape_event(self, event_id: int, series_id: int | None) -> tuple[VLREvent | None, list[int] | None]:
         if not isinstance(event_id, int):
             LOGGER.error(f"Invalid event ID entered: '{event_id}'")
             return None, None
@@ -282,7 +287,7 @@ class VLRScraper:
             date_scraped=datetime.now(timezone.utc),
         )
 
-    def probe_series(self, series_max: int | None) -> List[int]:
+    def discover_series(self, already_seen_series: List[int], series_max: int | None) -> List[int]:
         probed_series : List[int] = []
 
         consecutive_failures = 0
@@ -293,32 +298,68 @@ class VLRScraper:
         # Continue until we consecutively fail 10 times AND are below series_max
         while consecutive_failures < MAXIMUM_CONSECUTIVE_FAILURES \
             and (not series_max or curr_series_id <= series_max):
-            url = urljoin(BASE_URL, f"series/{curr_series_id}")
-            LOGGER.info("Probing %s", url)
-            for attempt in range(ATTEMPTS):
-                try:
-                    response = requests.get(url, timeout=self.timeout, headers={
-                        "User-Agent": (
-                            "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
-                            "AppleWebKit/537.36 (KHTML, like Gecko) "
-                            "Chrome/117.0.0.0 Safari/537.36"
-                        )
-                    })
 
-                    if response and response.ok:
-                        consecutive_failures = 0
-                        probed_series.append(curr_series_id)
-                        break
-                    else:
-                        consecutive_failures += 1
-                        LOGGER.info("Failed by bad status")
-                        break
-                except Exception as e:
-                    if attempt == ATTEMPTS - 1:
-                        LOGGER.info("Failed by no response")
-                        consecutive_failures += 1 
+            if curr_series_id not in already_seen_series:
+                url = urljoin(BASE_URL, f"series/{curr_series_id}")
+                LOGGER.info("Probing %s", url)
+                for attempt in range(ATTEMPTS):
+                    try:
+                        response = requests.get(url, timeout=self.timeout, headers={
+                            "User-Agent": (
+                                "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
+                                "AppleWebKit/537.36 (KHTML, like Gecko) "
+                                "Chrome/117.0.0.0 Safari/537.36"
+                            )
+                        })
+
+                        if response and response.ok:
+                            consecutive_failures = 0
+                            probed_series.append(curr_series_id)
+                            break
+                        else:
+                            consecutive_failures += 1
+                            LOGGER.info("Failed by bad status")
+                            break
+                    except Exception as e:
+                        if attempt == ATTEMPTS - 1:
+                            LOGGER.info("Failed by no response")
+                            consecutive_failures += 1 
+            else:
+                LOGGER.info("Already seen series id %s and will skip.", curr_series_id)
+                consecutive_failures = 0
             
             curr_series_id += 1
-            time.sleep(1)
         
         return probed_series
+
+    def discover_front_page_event_ids(self) -> List[int]:
+        front_page_events: List[int] = []
+
+        url = urljoin(BASE_URL, f"/events")
+        response = self._fetch_page(url, {
+            "tier": "all"
+        })
+
+        soup = BeautifulSoup(response, features="lxml")
+        events_container = soup.find("div", class_="events-container")
+
+        a_events: List[Tag] = events_container.findAll("a", class_=["wf-card", "event-item"])
+
+        for a_event in a_events:
+            href = a_event.get("href")
+            success = True
+
+            if not href:
+                success = False
+            else:
+                event_id = get_id_from_url(VLRScraperMode.EVENT, href)
+
+                if not event_id:
+                    success = False
+                else:
+                    front_page_events.append(event_id)
+
+            if not success:
+                LOGGER.warning("Potentially missed an event -> Couldn't find the id from event a tag.")
+        
+        return front_page_events

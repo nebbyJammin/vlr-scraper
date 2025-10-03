@@ -1,4 +1,4 @@
 services:
   app:
     environment:
-      FLAGS: "--build 86"
+      FLAGS: "--build-events"
