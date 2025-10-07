@@ -4,6 +4,7 @@ from logging.handlers import TimedRotatingFileHandler
 import os
 
 def initialise_logger() -> tuple[logging.Logger, logging.Logger, logging.Logger, logging.Logger, logging.Logger]:
+    """Initialises loggers and rotating file handlers. Generic logs will go into scraper.log files, while error logs file go into error.log files by default."""
     #  Get log settings from env
     LOG_DIR = os.getenv("LOG_DIR", "logs")
     LOG_LEVEL = os.getenv("LOG_LEVEL", "INFO")
@@ -66,7 +67,7 @@ def initialise_logger() -> tuple[logging.Logger, logging.Logger, logging.Logger,
 
     return MAIN_LOGGER, VLR_LOGGER, PG_LOGGER, PRIVATE_API_LOGGER, UTIL_LOGGER
 
-if __name__ != "__main__":
-    MAIN_LOGGER, VLR_LOGGER, PG_LOGGER, PRIVATE_API_LOGGER, UTIL_LOGGER = initialise_logger()
 
-    MAIN_LOGGER.info("Loggers have been successfully created!")
+MAIN_LOGGER, VLR_LOGGER, PG_LOGGER, PRIVATE_API_LOGGER, UTIL_LOGGER = initialise_logger()
+
+MAIN_LOGGER.info("Loggers have been successfully created!")

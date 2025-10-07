@@ -1,5 +1,7 @@
 from dotenv import load_dotenv
 
+from utils import dump_failed_payloads
+
 load_dotenv()
 
 import argparse
@@ -21,7 +23,7 @@ from scheduler.scraper_scheduler import ScrapeScheduler
 from scheduler.scraper_tasks import ScraperTask, ScraperTaskType
 from scraper.entities import VLRResult, VLRSeries, VLRTeam
 from scraper.scraper import VLRScraper, VLRScraperOptions
-from scraping_services.initial_run import discover_lone_events, discover_series
+from scraping_services.initial_run import discover_front_page_events, discover_lone_events, discover_series
 from telegram_notify.telegram_utils import send_telegram_msg
 from apscheduler.schedulers.background import BackgroundScheduler
 
@@ -82,7 +84,10 @@ def handle_bulk_insertion():
     
 
 def main():
-    register_background_tasks()
+    global SCRAPER, SCRAPE_SCHEDULER
+    # discover_front_page_events(SCRAPER, SCRAPE_SCHEDULER);
+    # register_background_tasks()
+    pass
 
 def register_background_tasks():
     global SCRAPER, SCRAPE_SCHEDULER, HIGH_PRIORITY_FREQUENCY, LOW_PRIORITY_FREQUENCY, PROBE_SERIES_FREQUENCY
@@ -97,7 +102,7 @@ def register_background_tasks():
     if SCHEDULING_CONTEXT["probe_series"]:
         background_scheduler.add_job(discover_series, 'interval', seconds=PROBE_SERIES_FREQUENCY, next_run_time=datetime.now())
     if SCHEDULING_CONTEXT["probe_events"]:
-        background_scheduler.add_job(discover_front_page_events, 'interval', seconds=PROBE_EVENTS_FREQUENCY, next_run_time=datetime.now())
+        background_scheduler.add_job(lambda: discover_front_page_events(SCRAPER, SCRAPE_SCHEDULER), 'interval', seconds=PROBE_EVENTS_FREQUENCY, next_run_time=datetime.now())
     if SCHEDULING_CONTEXT["bulk_insert"]:
         background_scheduler.add_job(handle_bulk_insertion, 'interval', seconds=BULK_INSERT_FREQUENCY)
 
@@ -182,13 +187,21 @@ if __name__ == "__main__":
         main();
 
     try:
+        user_command = input(">")
         while True:
-            time.sleep(1)
+            match user_command:
+                case "help":
+                    print("""
+                    'quit' | '!q' | 'exit' - forcefully closes the program.
+                    """)
+                case "quit" | "!q" | "exit":
+                    break
+                    
+            user_command = input("> ")
+
     except KeyboardInterrupt as e:
+        LOGGER.info("Received keyboard interrupt.")
+    finally:
         LOGGER.info("Shutting down...")
 
-    os.makedirs(os.path.dirname("failed_payloads/"), exist_ok=True)
-    if FAILED_PAYLOADS and len(FAILED_PAYLOADS) > 0:
-        filename = f"data_{datetime.now().strftime('%Y%m%d_%H%M%S')}.pkl"
-        with open(f"failed_payloads/{filename}", "wb") as f:
-            pickle.dump(FAILED_PAYLOADS, f)
+    dump_failed_payloads(FAILED_PAYLOADS)

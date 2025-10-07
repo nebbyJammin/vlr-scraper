@@ -61,7 +61,13 @@ class VLRScraper:
                 if attempt == NUM_ATTEMPTS - 1:
                     LOGGER.error(f"Unknown exception occurred at {url}: {e}", exc_info=True)
                 
-    def scrape_series(self, series_id: int) -> tuple[VLRSeries | None, list[int] | None]:
+    def scrape_series(self, series_id: int) -> tuple[VLRSeries | None, List[int] | None]:
+        """
+        Scrapes a series with id `series_id`. 
+        Returns `None, None` if no event could be found with id `series_id` or if other HTTP Exception occurred.
+        Returns a `VLRSeries` then a `List[int]` representing its child event ids. Use the child event ids if you need to scrape the child events recursively.
+        """
+
         if not isinstance(series_id, int):
             LOGGER.error(f"Invalid series ID entered: '{series_id}'")
             return None, None
@@ -99,6 +105,14 @@ class VLRScraper:
         event_ids
 
     def scrape_event(self, event_id: int, series_id: int | None) -> tuple[VLREvent | None, list[int] | None]:
+        """
+        Scrapes an event with id `event_id` and optional parent series `series_id`. 
+        Returns `None, None` if no event could be found with id `event_id` or if other HTTP Exception occurred.
+        Returns a `VLREvent` then a `List[int]` representing its child match ids. Use the child match ids if you need to scrape the child matches recursively.
+
+        `series_id` parameter is optional since not all events belong to a league/series. However, if it is well known that an event belongs to a parent series, never call this function to scrape that event with `None` `series_id`
+        """
+
         if not isinstance(event_id, int):
             LOGGER.error(f"Invalid event ID entered: '{event_id}'")
             return None, None
@@ -184,10 +198,16 @@ class VLRScraper:
 
         return scrape_event_dependent_matches(soup, event_id) 
                 
-    def scrape_match(self, match_id: int, event_id: int | None = None) -> VLRMatch:
+    def scrape_match(self, match_id: int, event_id: int | None = None) -> VLRMatch | None:
         """
-        Returns VLRMatch from a `match_id` and corresponding `event_id`
+        Scrapes a match with id `match_id` and optional event_id `event_id`.
+        Returns `None` if no match could be found with id `match_id` or if other HTTP Exception occurred.
+        Returns a `VLRMatch`.
+
+        `event_id` parameter is optional, however, it should always be called with a parent `event_id`.
+        All matches MUST belong under an `event_id`, but the scraper will try to infer the parent `event_id` if it is for some reason not known.
         """
+
         should_infer_event_id: bool = False
         if event_id is None:
             should_infer_event_id = True
@@ -249,7 +269,11 @@ class VLRScraper:
         )
 
     def scrape_team(self, team_id: int) -> VLRTeam | None:
-
+        """
+        Scrapes a team with id `team_id`.
+        Returns `None` if no team could be found with id `team_id` or if other HTTP Exception occurred.
+        Returns a `VLRMatch` if successful.
+        """
         url = get_vlr_url(f"/team/{team_id}/")
         response = self._fetch_page(url=url)
         if not response:
@@ -288,6 +312,13 @@ class VLRScraper:
         )
 
     def discover_series(self, already_seen_series: List[int], series_max: int | None) -> List[int]:
+        """
+        Takes a list of already seen series ids `already_seen_series` and an upper bound (inclusive) for the search space `series_max`.
+        Will keep searching up for series ids until `series_max` if defined, OR until 10 invalid series ids in a row.
+        vlr.gg will have some 'skipped' series ids. This function searches for not yet seen series by fetching the pages of each series and seeing if we get 200 status code (400 status code returned for page not found).
+
+        Returns a list of new series_ids
+        """
         probed_series : List[int] = []
 
         consecutive_failures = 0
@@ -333,6 +364,11 @@ class VLRScraper:
         return probed_series
 
     def discover_front_page_event_ids(self) -> List[int]:
+        """
+        Searches the front page of the events tab. This is important to search for events that do not belong under any leagues/series.
+
+        Returns a list of all the event ids on the front page.
+        """
         front_page_events: List[int] = []
 
         url = urljoin(BASE_URL, f"/events")

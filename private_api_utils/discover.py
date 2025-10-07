@@ -66,7 +66,9 @@ def get_unknown_events_diff(event_ids_to_diff: List[int]) -> List[int] | None:
     url = urljoin(PRIVATE_API_BASE_URL, "event/get-unknown-diff")
     for attempt in range(ATTEMPTS):
         try:
-            response = requests.get(url, timeout=5)
+            response = requests.get(url, timeout=5, params={
+                "id": event_ids_to_diff
+            })
             break
         except Exception as e:
             if attempt == ATTEMPTS - 1:

@@ -12,6 +12,7 @@ SEND_MESSAGE_URL = f"https://api.telegram.org/bot{TELEGRAM_TOKEN}/sendMessage"
 GET_ME_URL = f"https://api.telegram.org/bot{TELEGRAM_TOKEN}/getMe"
 
 def send_telegram_msg(message: str):
+    """Send telegram message synchronously. Uses the environment variables 'CHAT_IDS', 'TELEGRAM_TOKEN' - ensure these are configured correctly in environment variables."""
     global CHAT_IDS, SEND_MESSAGE_URL, USE_TELEGRAM, TELEGRAM_TOKEN
 
     if not USE_TELEGRAM or not TELEGRAM_TOKEN:
@@ -31,9 +32,11 @@ def send_telegram_msg(message: str):
                     UTIL_LOGGER.warning("Failed to send Telegram message: %s", e)
 
 def send_telegram_msg_threaded(message: str):
+    """Send telegram message asynchronously, by creating a thread that calls the synchronous `send_telegram_msg`, which in turns does not block the thread that it was called on."""
     threading.Thread(target=send_telegram_msg, args=(message,), daemon=True).start()
 
 class TelegramHandler(logging.Handler):
+    """A logging handler that sends a telegram message anytime an error happens. """
     def emit(self, record: logging.LogRecord):
         try:
             if record.levelno >= logging.ERROR:
@@ -43,6 +46,7 @@ class TelegramHandler(logging.Handler):
             pass
 
 def test_telegram_token():
+    """Tests if the telegram token is valid or not by hetting the get me URL."""
     if not USE_TELEGRAM or not TELEGRAM_TOKEN:
         return False
     try:
