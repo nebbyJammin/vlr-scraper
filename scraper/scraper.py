@@ -19,6 +19,10 @@ from scraper.scraper_functions.team_scraper import scrape_team_logo, scrape_team
 from scraper.scraper_utils import BASE_URL, SCRAPER_MODE_TO_URL_ENDPOINT, VLRScraperMode, VLRScraperOptions, get_id_from_url, get_vlr_url
 
 class VLRScraper: 
+    """
+    The scraper class that has the methods to scrape each entity from the vlr.gg website. Is thread safe.
+    """
+
     def __init__(self, options: VLRScraperOptions | None = None):
         if options is None:
             options = VLRScraperOptions()

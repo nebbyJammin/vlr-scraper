@@ -9,11 +9,13 @@ from bs4 import BeautifulSoup, Tag
 
 @dataclass
 class VLRScraperOptions:
+    """The options used by the VLRScraper class"""
     timeout: int = 10
     local_tz: str = "UTC"
     vlr_utc_offset: timedelta = timedelta(hours=4)
 
 class VLRScraperMode(Enum):
+    """The different modes that the VLRScraper can use. Each mode usually represents a different entity."""
     SERIES=0
     EVENT=1
     MATCH=2
@@ -33,6 +35,7 @@ def get_vlr_url(path: str) -> str:
     return urljoin(BASE_URL, path)
 
 def soup_cast(func):
+    """A decorator that ensures the root is casted into the correct type."""
     @wraps(func)
     def wrapper(root, *args, **kwargs):
         if not isinstance(root, Tag) and not isinstance(root, BeautifulSoup):
@@ -44,6 +47,20 @@ def soup_cast(func):
     return wrapper
 
 def get_id_from_url(mode: VLRScraperMode, url: str) -> int | None:
+    """
+    Takes a url from the vlr.gg website and tries to extract the id from that url.
+
+    Generally urls can look like:
+    vlr.gg/event/2281/the-event-name-of-event-2281
+    
+    The scraper only cares about the '2281' part, which corresponds to the id of the event.
+    
+    This function tries to unpack the url as a string and return the id part.
+
+    Ensure the correct `VLRScraperMode` is specified as each entity uses a different protocol to encode their URL endpoints.
+
+    Returns the id if successful, else will return None.
+    """
     if not isinstance(mode, VLRScraperMode):
         LOGGER.error(f"Invalid scraper mode entered. Mode was of type '{mode.__class__}'")
     if not isinstance(url, str):

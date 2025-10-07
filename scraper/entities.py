@@ -17,6 +17,9 @@ class TeamStatus(Enum):
 
 @dataclass
 class ScrapableEntry:
+    """
+    The base class for all scrapable entities. Has members to help serialisation and database insertion.
+    """
     date_scraped: Optional[datetime] = field(default=None, kw_only=True) # Can omit if we are using this dataclass outside of a web scraping context.
 
     def _serializer(self, o):

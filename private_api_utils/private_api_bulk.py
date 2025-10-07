@@ -13,6 +13,10 @@ from private_api_utils.private_api_utils import PRIVATE_API_BASE_URL
 
 
 def bulk_insert(endpoint: str, payload: Dict[str, any]) -> requests.Response:
+    """
+    A helper method that takes a payload in the format expected by the private api endpoint and attempts to bulk insert using the relevant bulk insert endpoint.
+    """
+
     ATTEMPTS = 10
     for attempt in range(ATTEMPTS):
         try:
@@ -53,6 +57,10 @@ def bulk_insert_matches(matches_dict: Dict[str, any]) -> requests.Response:
     return bulk_insert("match/bulk", payload)
 
 def bulk_insert_results(result_dict: Dict[str, any]) -> List[tuple[str, Dict[str, any]]]:
+    """
+    A helper method that bulk inserts each component of the `results_dict`, which is typically returned from the getting the result set of the `ScrapeScheduler` 
+    """
+
     result_names = ("series", "team", "event", "match")
     result_name_set = set(result_names)
     if not result_name_set.issubset(result_dict.keys()):

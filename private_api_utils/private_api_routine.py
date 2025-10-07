@@ -7,6 +7,11 @@ from private_api_utils.private_api_utils import PRIVATE_API_BASE_URL
 from logging_config import PRIVATE_API_LOGGER as LOGGER
 
 def unpack_tasks(scraper_tasks: List[ScraperTask], response: requests.Response):
+    """
+    Unpacks the response from the FastAPI private api server and appends each response item to the end of the `scraper_tasks` list. 
+    Typically, call this when handling a response such as getting low/high priority tasks.
+    """
+
     data: Dict[str, Any] = response.json()
     data: Dict[str, Dict[str, Any]] = data["data"]
     if "match" in data.keys() and isinstance(data["match"], List):
@@ -61,6 +66,11 @@ def unpack_tasks(scraper_tasks: List[ScraperTask], response: requests.Response):
     
 
 def get_high_priority_tasks_routine() -> List[ScraperTask] | None:
+    """
+    Returns a list of scraper tasks the represent the tasks that need to be scraped at a high priority level.
+    This usually includes things like upcoming/ongoing events and matches.
+    """
+
     ATTEMPTS = 10
     for attempt in range(ATTEMPTS):
         try:
@@ -82,6 +92,12 @@ def get_high_priority_tasks_routine() -> List[ScraperTask] | None:
     return scraper_tasks
 
 def get_low_priority_tasks_routine() -> List[ScraperTask] | None:
+    """
+    Returns a list of scraper tasks that represent the tasks that need to be scraped at a low priority level. 
+    This usually includes things like completed events/matches that haven't been scraped in a while.
+    It is important to do this to ensure data isn't outdated - however, for vlr.gg, it is extremely unlikely for completed entities to update after completion.
+    """
+
     ATTEMPTS = 10
     for attempt in range(ATTEMPTS):
         try:

@@ -18,6 +18,12 @@ from scraper.entities import VLRResult, VLREvent, VLRMatch, VLRSeries, VLRTeam
 from scraper.scraper import VLRScraper
 
 class ScrapeScheduler():
+    """
+    The class that uses a single instance of the `VLRScraper` class and orchestrates multiple threads to pull from a queue of tasks and scrape more efficiently. 
+    For `max_workers`, as of 7/10/2025, somewhere between 20-25 seems to be the upper limit without being rate limited. 
+    It is strongly recommended to go with 20 workers in the thread pool.
+    """
+
     MIN_SLEEP_TIME = 0.5
     MAX_SLEEP_TIME = 2
 
@@ -77,6 +83,8 @@ class ScrapeScheduler():
         self._spawn_scraper_task_thread_pool()
 
     def _spawn_scraper_task_thread_pool(self):
+        """Delegates tasks to each thread in the thread pool."""
+
         LOGGER.info("Beginning to execute tasks - estimated size is %s", self.get_task_qsize())
 
         # Drain tasks into a batch
@@ -96,21 +104,23 @@ class ScrapeScheduler():
                     self._handle_task, task)
             )
 
-        for f in futures:
-            try:
-                f.result()
-            except Exception as e:
-                LOGGER.error(f"Failed to retrieve result.", exc_info=True)
+        # for f in futures:
+        #     try:
+        #         f.result()
+        #     except Exception as e:
+        #         LOGGER.error(f"Failed to retrieve result.", exc_info=True)
         
         with self._task_scheduler_lock:
             self._is_completing_scraper_tasks = False
 
     def enqueue_task(self, task: ScraperTask, priority:int=0):
+        """Tries to enqueue the task, if the task is already added, then silently fail and do not add to queue."""
         if self._result_store.try_enqueue_task(task):
             count_id: int = next(self._task_counter)
             self._task_queue.put((-priority, count_id, task))
     
     def remove_task_from_seen(self, task: ScraperTask):
+        """Removes task from seen list. Usually, only call this if the task has failed somehow."""
         self._result_store.remove_task_from_seen(task)
     
     def get_task_qsize(self) -> int:

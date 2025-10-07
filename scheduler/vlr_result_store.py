@@ -41,6 +41,7 @@ class ResultStore():
         return self._seen_team_ids
     
     def remove_task_from_seen(self, task: ScraperTask) -> bool:
+        """Returns true if it could remove the set from the seen ids set. Else returns false."""
         already_scraped_set: Set[int]
 
         with self._results_lock:
@@ -64,6 +65,7 @@ class ResultStore():
                 return False
     
     def try_enqueue_task(self, task: ScraperTask) -> bool:
+        """Ensures the same task isn't enqueued twice by adding the task to the already seen set."""
         already_scraped_set: Set[int]
 
         with self._results_lock:
@@ -89,6 +91,7 @@ class ResultStore():
             return True
     
     def append_results(self, *results: VLRResult):
+        """Appends results to result set. Is thread safe."""
         for result in results:
             with self._results_lock:
                 if result == None:
@@ -105,6 +108,7 @@ class ResultStore():
                     LOGGER.error("Unknown VLRResult type passed into append_result, silently failing.")
     
     def get_result_set(self) -> Dict[str, List[VLRResult]]:
+        """Retrieves result set. Is thread safe."""
         result_dict = {}
         with self._results_lock:
             result_dict["series"] = list(self._series_results)
