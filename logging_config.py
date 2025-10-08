@@ -1,4 +1,5 @@
 import logging
+from typing import List, Any
 from logging.handlers import TimedRotatingFileHandler
 
 import os
@@ -9,6 +10,7 @@ def initialise_logger() -> tuple[logging.Logger, logging.Logger, logging.Logger,
     LOG_DIR = os.getenv("LOG_DIR", "logs")
     LOG_LEVEL = os.getenv("LOG_LEVEL", "INFO")
     LOG_RETENTION = int(os.getenv("LOG_RETENTION", 7))
+    LOG_STDOUT = os.getenv("LOG_STDOUT", 'false').lower() in ("true", "yes", "1")
 
     # Ensure logs directory exists
     os.makedirs(LOG_DIR, exist_ok=True)
@@ -36,24 +38,24 @@ def initialise_logger() -> tuple[logging.Logger, logging.Logger, logging.Logger,
     )
     error_handler.setLevel("ERROR")
 
-    # Stream handler (console)
-    stream_handler = logging.StreamHandler()
-    stream_handler.setLevel(LOG_LEVEL)
-
     # --- Formatter ---
     formatter = logging.Formatter("%(asctime)s [%(levelname)s] %(name)s: %(message)s")
-    for h in (file_handler, error_handler, stream_handler):
+    handlers: List[Any] = [file_handler, error_handler] # Add stream_handler if you want to print to stdout
+
+    # Stream handler (console)
+    if LOG_STDOUT:
+        stream_handler = logging.StreamHandler()
+        stream_handler.setLevel(LOG_LEVEL)
+        handlers.append(stream_handler)
+
+    for h in handlers:
         h.setFormatter(formatter)
         
     # Configure logger
     logging.basicConfig(
         level=LOG_LEVEL,
         format="%(asctime)s [%(levelname)s] %(name)s: %(message)s",
-        handlers=[
-            file_handler,
-            stream_handler,
-            error_handler
-        ]
+        handlers=handlers
     )
 
     MAIN_LOGGER = logging.getLogger("Main")
@@ -62,7 +64,7 @@ def initialise_logger() -> tuple[logging.Logger, logging.Logger, logging.Logger,
     PRIVATE_API_LOGGER = logging.getLogger("PRIVATE API")
     UTIL_LOGGER = logging.getLogger("VLR Utils")
 
-    # TODO: Remove -> Silent noisy library
+    # TODO: Remove -> Silence noisy library
     logging.getLogger("urllib3.connectionpool").setLevel(logging.WARNING)
 
     return MAIN_LOGGER, VLR_LOGGER, PG_LOGGER, PRIVATE_API_LOGGER, UTIL_LOGGER

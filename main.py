@@ -1,7 +1,7 @@
 import sys
 from dotenv import load_dotenv
 
-from utils import dump_failed_payloads
+from utils import double_log, dump_failed_payloads
 
 load_dotenv()
 
@@ -64,6 +64,9 @@ def handle_high_priority_tasks():
 
     tasks = get_high_priority_tasks_routine()
 
+    if not tasks:
+        return
+
     for task in tasks:
         SCRAPE_SCHEDULER.enqueue_task(task, task.context.get("priority", 1))
 
@@ -72,6 +75,9 @@ def handle_low_priority_tasks():
 
     tasks = get_low_priority_tasks_routine()
 
+    if not tasks:
+        return
+
     for task in tasks:
         SCRAPE_SCHEDULER.enqueue_task(task, task.context.get("priority", 0))
 
@@ -79,7 +85,7 @@ def handle_bulk_insertion():
     global FAILED_PAYLOADS
 
     # Write to db
-    results: Dict[str, VLRResult] = SCRAPE_SCHEDULER.get_result_set()
+    results: Dict[str, List[VLRResult]] = SCRAPE_SCHEDULER.get_result_set()
     failed = bulk_insert_results(results)
 
     FAILED_PAYLOADS.extend(failed)
@@ -191,20 +197,56 @@ if __name__ == "__main__":
             while True:
                 time.sleep(1)
         else:
+
             user_command = input(">")
             while True:
-                match user_command:
+                args = user_command.strip().split(" ")
+
+                if len(args) == 0:
+                    continue
+
+                match args[0]:
                     case "help":
-                        print("""
-                        'quit' | '!q' | 'exit' - forcefully closes the program.
-                        """)
+                        print(
+                        "Here are a list of commands you can run:\n" +\
+                        "    help             - gives a list of commands.\n" +\
+                        "    quit | !q | exit - forcefully closes the program.\n" +\
+                        "    scheduler        - provides information and health checks on the scheduler.\n"\
+                        , end="")
                     case "quit" | "!q" | "exit":
+                        print("Exiting... (This may take a while as the program cleans up background threads. Ctrl+C OR forcefully end this process if this is taking too long)")
                         break
+                    case "scheduler" | "sched":
+                        scheduler_help_msg = \
+                        "    scheduler flags:\n" +\
+                        "        help                        - Gives a list of all commands\n" +\
+                        "        qsize | size                - Gives a rough estimate for the number of items in the schedulers queue\n"
+
+                        if len(args) > 1:
+                            match args[1]:
+                                case "help":
+                                    print(scheduler_help_msg, end="")
+                                case "qsize" | "size":
+                                    qsize, consumed_qsize = SCRAPE_SCHEDULER.get_true_qsize()
+                                    print(f"The scrape scheduler has {qsize + consumed_qsize} task(s) in the task queue, of which {qsize} have not been enqueued into the worker pool, and {consumed_qsize} have been enqueued and are waiting to be scraped.")
+                                case _:
+                                    print("Unknown command for scheduler received... Type 'help' or 'h' for a list of commands.")
+                        else:
+                            print(scheduler_help_msg, end="")
+                    case _:
+                        print("""
+                        Unknown command entered. Type 'help' or 'h' for a list of commands.
+                        """)
                     
                 user_command = input("> ")
     except KeyboardInterrupt as e:
-        LOGGER.info("Received keyboard interrupt.")
+        double_log(LOGGER, "Received Keyboard Interrupt.")
+    except Exception as e:
+        double_log(LOGGER, "Received unknown exception. Forcefully cleaning up main thread...")
     finally:
-        LOGGER.info("Shutting down...")
+        pass
 
     dump_failed_payloads(FAILED_PAYLOADS)
+
+    double_log(LOGGER, "Shutting down...")
+    sys.exit(0)

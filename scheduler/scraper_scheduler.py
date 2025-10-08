@@ -49,6 +49,15 @@ class ScrapeScheduler():
 
     def shutdown(self):
         """Shut down the executor and scheduler safely"""
+        LOGGER.info("Cleaning up scheduler thread pool executor...")
+        while not self._task_thread_pool_executor.empty():
+            try:
+                work_item = self._task_thread_pool_executor._work_queue.get_nowait()
+                work_item.future.cancel()
+            except Exception:
+                break
+        LOGGER.info("Finished cleaning up thread pool executor!")
+
         self._task_thread_pool_executor.shutdown(wait=False)
         self._scheduler.shutdown(wait=False)
 
@@ -68,8 +77,7 @@ class ScrapeScheduler():
         """Checks if there are tasks to do. Will spawn a ThreadPoolExecutor to handle these tasks if there are tasks to complete."""
 
         LOGGER.info("Sending task scheduler heartbeat...")
-        LOGGER.info("Estimated size of task queue is %s", self.get_task_qsize())
-
+        LOGGER.info("Estimated size of task queue is %s", self.get_task_qsize() + self.get_consumed_qsize())
         with self._task_scheduler_lock:
             if self._is_completing_scraper_tasks:
                 # Already completing scraper tasks just return
@@ -95,6 +103,7 @@ class ScrapeScheduler():
                 tasks.append(task)
             except Empty:
                 break
+
         
         # Submit each task to the persistent executor
         futures = []
@@ -126,6 +135,13 @@ class ScrapeScheduler():
     def get_task_qsize(self) -> int:
         """Calls queue.qsize(). Is unreliable (Not thread safe)."""
         return self._task_queue.qsize()
+
+    def get_consumed_qsize(self) -> int:
+        """Gets the hidden queue size. Should be reliable."""
+        return self._task_thread_pool_executor._work_queue.qsize() # A nice hack to see the qsize of the thread pool
+
+    def get_true_qsize(self) -> Tuple[int, int]:
+        return self.get_task_qsize(), self.get_consumed_qsize()
     
     def _handle_task(self, task: ScraperTask) -> any:
         """Handles a scraping task. Any dependent entities that need to be scraped will be scraped."""

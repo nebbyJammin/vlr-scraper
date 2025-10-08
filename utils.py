@@ -1,6 +1,7 @@
 from datetime import datetime
 import os
 import pickle
+import logging
 
 
 def dump_failed_payloads(failed_payload: any):
@@ -11,3 +12,7 @@ def dump_failed_payloads(failed_payload: any):
         filename = f"data_{datetime.now().strftime('%Y%m%d_%H%M%S')}.pkl"
         with open(f"failed_payloads/{filename}", "wb") as f:
             pickle.dump(failed_payload, f)
+
+def double_log(logger: logging.Logger, msg: str):
+    print(msg)
+    logger.info(msg)

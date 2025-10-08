@@ -222,5 +222,8 @@ logs/
 credentials/
 .ssh/
 
+# Errored Payloads .pkl
+failed_payloads/*.pkl
+
 # VSCodeCounter
 .VSCodeCounter/
