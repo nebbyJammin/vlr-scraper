@@ -1,3 +1,4 @@
+import sys
 from dotenv import load_dotenv
 
 from utils import dump_failed_payloads
@@ -187,18 +188,21 @@ if __name__ == "__main__":
         main();
 
     try:
-        user_command = input(">")
-        while True:
-            match user_command:
-                case "help":
-                    print("""
-                    'quit' | '!q' | 'exit' - forcefully closes the program.
-                    """)
-                case "quit" | "!q" | "exit":
-                    break
+        if not sys.stdin.isatty:
+            while True:
+                time.sleep(1)
+        else:
+            user_command = input(">")
+            while True:
+                match user_command:
+                    case "help":
+                        print("""
+                        'quit' | '!q' | 'exit' - forcefully closes the program.
+                        """)
+                    case "quit" | "!q" | "exit":
+                        break
                     
-            user_command = input("> ")
-
+                user_command = input("> ")
     except KeyboardInterrupt as e:
         LOGGER.info("Received keyboard interrupt.")
     finally:
