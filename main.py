@@ -188,7 +188,7 @@ if __name__ == "__main__":
         main();
 
     try:
-        if not sys.stdin.isatty:
+        if not sys.stdin.isatty():
             while True:
                 time.sleep(1)
         else:
