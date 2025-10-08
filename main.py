@@ -87,9 +87,7 @@ def handle_bulk_insertion():
 
 def main():
     global SCRAPER, SCRAPE_SCHEDULER
-    # discover_front_page_events(SCRAPER, SCRAPE_SCHEDULER);
-    # register_background_tasks()
-    pass
+    register_background_tasks()
 
 def register_background_tasks():
     global SCRAPER, SCRAPE_SCHEDULER, HIGH_PRIORITY_FREQUENCY, LOW_PRIORITY_FREQUENCY, PROBE_SERIES_FREQUENCY, BACKGROUND_SCHEDULER
@@ -102,7 +100,7 @@ def register_background_tasks():
     if SCHEDULING_CONTEXT["low_priority"]:
         BACKGROUND_SCHEDULER.add_job(handle_low_priority_tasks, 'interval', seconds=LOW_PRIORITY_FREQUENCY, next_run_time=datetime.now())
     if SCHEDULING_CONTEXT["probe_series"]:
-        BACKGROUND_SCHEDULER.add_job(discover_series, 'interval', seconds=PROBE_SERIES_FREQUENCY, next_run_time=datetime.now())
+        BACKGROUND_SCHEDULER.add_job(lambda: discover_series(SCRAPER, SCRAPE_SCHEDULER), 'interval', seconds=PROBE_SERIES_FREQUENCY, next_run_time=datetime.now())
     if SCHEDULING_CONTEXT["probe_events"]:
         BACKGROUND_SCHEDULER.add_job(lambda: discover_front_page_events(SCRAPER, SCRAPE_SCHEDULER), 'interval', seconds=PROBE_EVENTS_FREQUENCY, next_run_time=datetime.now())
     if SCHEDULING_CONTEXT["bulk_insert"]:
@@ -186,7 +184,6 @@ if __name__ == "__main__":
 
         register_background_tasks()
     else:
-        register_background_tasks()
         main();
 
     try:
