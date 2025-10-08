@@ -168,6 +168,13 @@ Sending task scheduler heartbeat...
 Estimated size of task queue is 0 # No more tasks to scrape.
 ```
 
+Alternative, you can type in a TTY:
+
+```sh
+# You must be in a TTY environment, it is not possible to run this command in a docker container.
+scheduler qsize # or sched size
+```
+
 #### 2. Build event
 ---
 Most events belong to a parent series, which should have been recursively scraped in the above steps. However, there are some events that do not belong to any series (mostly offseason events).
@@ -206,6 +213,13 @@ You will know when the process is complete when you see in the console:
 ```sh
 Sending task scheduler heartbeat...
 Estimated size of task queue is 0 # No more tasks to scrape.
+```
+
+Alternative, you can type in a TTY:
+
+```sh
+# You must be in a TTY environment, it is not possible to run this command in a docker container.
+scheduler qsize # or sched size
 ```
 
 #### 3. Run normally to maintain integrity and validity of data
