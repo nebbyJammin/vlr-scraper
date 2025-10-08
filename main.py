@@ -30,6 +30,7 @@ from apscheduler.schedulers.background import BackgroundScheduler
 
 SCRAPER: VLRScraper
 SCRAPE_SCHEDULER: ScrapeScheduler
+BACKGROUND_SCHEDULER: BackgroundScheduler
 FAILED_PAYLOADS: List[tuple[str, Dict[str, any]]] = []
 SCHEDULING_CONTEXT: Dict[str, bool] = {
     "high_priority": True,
@@ -91,23 +92,23 @@ def main():
     pass
 
 def register_background_tasks():
-    global SCRAPER, SCRAPE_SCHEDULER, HIGH_PRIORITY_FREQUENCY, LOW_PRIORITY_FREQUENCY, PROBE_SERIES_FREQUENCY
+    global SCRAPER, SCRAPE_SCHEDULER, HIGH_PRIORITY_FREQUENCY, LOW_PRIORITY_FREQUENCY, PROBE_SERIES_FREQUENCY, BACKGROUND_SCHEDULER
 
-    background_scheduler = BackgroundScheduler()
-    background_scheduler.start()
+    BACKGROUND_SCHEDULER = BackgroundScheduler()
+    BACKGROUND_SCHEDULER.start()
 
     if SCHEDULING_CONTEXT["high_priority"]:
-        background_scheduler.add_job(handle_high_priority_tasks, 'interval', seconds=HIGH_PRIORITY_FREQUENCY, max_instances=1, next_run_time=datetime.now())
+        BACKGROUND_SCHEDULER.add_job(handle_high_priority_tasks, 'interval', seconds=HIGH_PRIORITY_FREQUENCY, max_instances=1, next_run_time=datetime.now())
     if SCHEDULING_CONTEXT["low_priority"]:
-        background_scheduler.add_job(handle_low_priority_tasks, 'interval', seconds=LOW_PRIORITY_FREQUENCY, next_run_time=datetime.now())
+        BACKGROUND_SCHEDULER.add_job(handle_low_priority_tasks, 'interval', seconds=LOW_PRIORITY_FREQUENCY, next_run_time=datetime.now())
     if SCHEDULING_CONTEXT["probe_series"]:
-        background_scheduler.add_job(discover_series, 'interval', seconds=PROBE_SERIES_FREQUENCY, next_run_time=datetime.now())
+        BACKGROUND_SCHEDULER.add_job(discover_series, 'interval', seconds=PROBE_SERIES_FREQUENCY, next_run_time=datetime.now())
     if SCHEDULING_CONTEXT["probe_events"]:
-        background_scheduler.add_job(lambda: discover_front_page_events(SCRAPER, SCRAPE_SCHEDULER), 'interval', seconds=PROBE_EVENTS_FREQUENCY, next_run_time=datetime.now())
+        BACKGROUND_SCHEDULER.add_job(lambda: discover_front_page_events(SCRAPER, SCRAPE_SCHEDULER), 'interval', seconds=PROBE_EVENTS_FREQUENCY, next_run_time=datetime.now())
     if SCHEDULING_CONTEXT["bulk_insert"]:
-        background_scheduler.add_job(handle_bulk_insertion, 'interval', seconds=BULK_INSERT_FREQUENCY)
+        BACKGROUND_SCHEDULER.add_job(handle_bulk_insertion, 'interval', seconds=BULK_INSERT_FREQUENCY)
 
-    atexit.register(lambda: background_scheduler.shutdown(wait=False))
+    atexit.register(lambda: BACKGROUND_SCHEDULER.shutdown(wait=False))
 
 if __name__ == "__main__":
 
@@ -185,6 +186,7 @@ if __name__ == "__main__":
 
         register_background_tasks()
     else:
+        register_background_tasks()
         main();
 
     try:
