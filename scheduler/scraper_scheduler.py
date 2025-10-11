@@ -50,7 +50,7 @@ class ScrapeScheduler():
     def shutdown(self):
         """Shut down the executor and scheduler safely"""
         LOGGER.info("Cleaning up scheduler thread pool executor...")
-        while not self._task_thread_pool_executor.empty():
+        while not self._task_thread_pool_executor and self._task_thread_pool_executor.empty():
             try:
                 work_item = self._task_thread_pool_executor._work_queue.get_nowait()
                 work_item.future.cancel()
