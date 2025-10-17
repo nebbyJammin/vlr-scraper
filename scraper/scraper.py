@@ -52,7 +52,7 @@ class VLRScraper:
                 response = requests.get(url, timeout=self.timeout, params=headers)
 
                 if response.status_code == 404:
-                    LOGGER.warning(f"No page found for {url}: {e}", exc_info=True)
+                    LOGGER.warning(f"No page found for {url}:")
                     return None
 
                 response.raise_for_status()
