@@ -1,6 +1,5 @@
 from dataclasses import asdict, dataclass, field
-import json
-from typing import List, Optional
+import json from typing import List, Optional
 from datetime import date, datetime
 from enum import Enum
 
@@ -72,6 +71,8 @@ class VLRMatch(ScrapableEntry):
     # score_n = None implies the game hasn't started yet
     score_1: Optional[int]
     score_2: Optional[int]
+    vods: Optional[List[int]]
+    streams: Optional[List[int]]
 
 @dataclass
 class VLRTeam(ScrapableEntry):

@@ -13,7 +13,7 @@ import re
 
 from scraper.entities import CompletionStatus, VLREvent, VLRMatch, VLRSeries, VLRTeam
 from scraper.scraper_functions.event_scraper import scrape_event_date, scrape_event_dependent_matches, scrape_event_name, scrape_event_prize, scrape_event_region, scrape_event_tag, scrape_event_thumbnail
-from scraper.scraper_functions.match_scraper import infer_event_from_match, scrape_match_date, scrape_match_dependent_teams, scrape_match_name, scrape_match_note, scrape_match_status
+from scraper.scraper_functions.match_scraper import infer_event_from_match, scrape_match_date, scrape_match_dependent_teams, scrape_match_name, scrape_match_note, scrape_match_status, scrape_match_vods, scrape_match_streams
 from scraper.scraper_functions.series_scraper import scrape_series_dependent_events, scrape_series_description, scrape_series_name, scrape_series_status
 from scraper.scraper_functions.team_scraper import scrape_team_logo, scrape_team_name, scrape_team_region, scrape_team_socials, scrape_team_status
 from scraper.scraper_utils import BASE_URL, SCRAPER_MODE_TO_URL_ENDPOINT, VLRScraperMode, VLRScraperOptions, get_id_from_url, get_vlr_url
@@ -250,12 +250,21 @@ class VLRScraper:
         if match_status is None:
             LOGGER.error(f"Failed to parse match status for match with url '{url}'")
             return None
-        # Get match note
         tournament_note = scrape_match_note(match_card, match_id)
-        # Get date_start
         date_start = scrape_match_date(match_card, match_id)
-        # Get team
         team_1_id, team_2_id = scrape_match_dependent_teams(match_card, match_id)
+        
+        vods_container = soup.select_one(f"div.match-vods")
+        if vods_container:
+            vods = scrape_match_vods(vods_container)
+        else:
+            vods = []
+
+        streams_container = soup.select_one(f"div.match-streams")
+        if streams_container:
+            streams = scrape_match_streams(streams_container)
+        else:
+            vods = []
 
         return VLRMatch(
             vlr_id=match_id,
@@ -270,6 +279,8 @@ class VLRScraper:
             score_1=score_1,
             score_2=score_2,
             date_scraped=datetime.now(timezone.utc),
+            vods=None,
+            streams=None
         )
 
     def scrape_team(self, team_id: int) -> VLRTeam | None:

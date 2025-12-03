@@ -189,3 +189,13 @@ def infer_event_from_match(root: Tag | BeautifulSoup | str, match_id: int | None
     event_id = get_id_from_url(VLRScraperMode.EVENT, url=href)
 
     return event_id
+
+@soup_cast
+def scrape_match_vods(root: Tag | BeautifulSoup | str, match_id: int | None) -> List[str]:
+    links: List[Tag] = root.findAll('a')
+    return [link.get("href", None) for link in links]
+
+@soup_cast
+def scrape_match_streams(root: Tag | BeautifulSoup | str, match_id: int | None) -> List[str]:
+    links: List[Tag] = root.findAll('a')
+    return [link.get("href", None) for link in links]
