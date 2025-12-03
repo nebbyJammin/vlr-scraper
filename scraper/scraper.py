@@ -315,7 +315,7 @@ class VLRScraper:
             date_scraped=datetime.now(timezone.utc),
         )
 
-    def discover_series(self, already_seen_series: List[int], series_max: int | None) -> List[int]:
+    def discover_series(self, already_seen_series: List[int] | None, series_max: int | None) -> List[int]:
         """
         Takes a list of already seen series ids `already_seen_series` and an upper bound (inclusive) for the search space `series_max`.
         Will keep searching up for series ids until `series_max` if defined, OR until 10 invalid series ids in a row.

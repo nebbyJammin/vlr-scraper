@@ -14,8 +14,8 @@ def do_initial_run(SCRAPER: VLRScraper, SCRAPE_SCHEDULER: ScrapeScheduler, serie
 def discover_series(SCRAPER: VLRScraper, SCRAPE_SCHEDULER: ScrapeScheduler, series_upper: int | None = None):
     """Enqueues any series that has not yet been discovered to the Scrape Scheduler. 
     Requires the private api to be available."""
-    already_seen_series: List[int] = get_known_series()
-    new_series: List[int] = SCRAPER.discover_series(already_seen_series, series_upper)
+    already_seen_series: List[int] | None = get_known_series()
+    new_series: List[int] | None = SCRAPER.discover_series(already_seen_series, series_upper)
 
     # Recursively scrape all series that have just been discovered/probed.
     for series_id in new_series:
@@ -35,15 +35,16 @@ def discover_front_page_events(SCRAPER: VLRScraper, SCRAPE_SCHEDULER: ScrapeSche
     front_page_event_ids: List[int] = SCRAPER.discover_front_page_event_ids()
     new_event_ids = get_unknown_events_diff(front_page_event_ids)
 
-    for event_id in new_event_ids:
-        SCRAPE_SCHEDULER.enqueue_task(
-            ScraperTask(
-                task_type=ScraperTaskType.SCRAPE_EVENT,
-                id=event_id,
-                recursive=True,
-            ),
-            1050 # High priority
-        )
+    if new_event_ids:
+        for event_id in new_event_ids:
+            SCRAPE_SCHEDULER.enqueue_task(
+                ScraperTask(
+                    task_type=ScraperTaskType.SCRAPE_EVENT,
+                    id=event_id,
+                    recursive=True,
+                ),
+                1050 # High priority
+            )
 
 def discover_lone_events(SCRAPER: VLRScraper, SCRAPE_SCHEDULER: ScrapeScheduler):
     """Enqueues all events that have not been discovered. 
@@ -51,17 +52,18 @@ def discover_lone_events(SCRAPER: VLRScraper, SCRAPE_SCHEDULER: ScrapeScheduler)
     USE THIS ONLY AFTER `discover_series()` HAS BEEN CALLED RECENTLY i.e. the database is mostly up to date.
     Requires the private api to be available. 
     """
-    unknown_events: List[int] = get_unknown_events()
+    unknown_events: List[int] | None = get_unknown_events()
 
     LOGGER.debug(unknown_events)
 
     # Recursively scrape all events that have no parent series.
-    for event_id in unknown_events:
-        SCRAPE_SCHEDULER.enqueue_task(
-            ScraperTask(
-                task_type=ScraperTaskType.SCRAPE_EVENT,
-                id=event_id,
-                recursive=True,
-            ),
-            1000 # High priority
-        )
+    if unknown_events:
+        for event_id in unknown_events:
+            SCRAPE_SCHEDULER.enqueue_task(
+                ScraperTask(
+                    task_type=ScraperTaskType.SCRAPE_EVENT,
+                    id=event_id,
+                    recursive=True,
+                ),
+                1000 # High priority
+            )

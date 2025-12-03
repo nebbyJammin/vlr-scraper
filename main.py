@@ -7,22 +7,18 @@ load_dotenv()
 
 import argparse
 import atexit
-from enum import Enum
 import os
 import time
-from datetime import date, datetime, timedelta, timezone
-from typing import Dict, List, Set
+from datetime import timedelta, datetime
+from typing import Dict, List, Any
 
 import logging
-import pickle
 
 from logging_config import MAIN_LOGGER as LOGGER
 from private_api_utils.private_api_bulk import bulk_insert_results
 from private_api_utils.private_api_routine import get_high_priority_tasks_routine, get_low_priority_tasks_routine
-from private_api_utils.private_api_utils import serializer
 from scheduler.scraper_scheduler import ScrapeScheduler
-from scheduler.scraper_tasks import ScraperTask, ScraperTaskType
-from scraper.entities import VLRResult, VLRSeries, VLRTeam
+from scraper.entities import VLRResult
 from scraper.scraper import VLRScraper, VLRScraperOptions
 from scraping_services.initial_run import discover_front_page_events, discover_lone_events, discover_series
 from telegram_notify.telegram_utils import send_telegram_msg
@@ -31,7 +27,7 @@ from apscheduler.schedulers.background import BackgroundScheduler
 SCRAPER: VLRScraper
 SCRAPE_SCHEDULER: ScrapeScheduler
 BACKGROUND_SCHEDULER: BackgroundScheduler
-FAILED_PAYLOADS: List[tuple[str, Dict[str, any]]] = []
+FAILED_PAYLOADS: List[tuple[str, Dict[str, Any]]] = []
 SCHEDULING_CONTEXT: Dict[str, bool] = {
     "high_priority": True,
     "low_priority": True,
@@ -53,7 +49,7 @@ def initialise_scraper():
 
     SCRAPER_OPTIONS = VLRScraperOptions(
         local_tz=os.getenv("LOCAL_TIME_ZONE", "UTC"),
-        vlr_utc_offset=vlr_utc_offset
+        vlr_utc_offset=timedelta(hours=vlr_utc_offset)
     )
 
     SCRAPER = VLRScraper(SCRAPER_OPTIONS)
