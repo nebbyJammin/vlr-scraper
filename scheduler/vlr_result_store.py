@@ -116,6 +116,8 @@ class ResultStore():
             result_dict["match"] = list(self._match_results)
             result_dict["team"] = list(self._team_results)
 
+            LOGGER.info("Result Dictionary was: %s", result_dict)
+
             for result in self._results:
                 result.clear()
             

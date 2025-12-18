@@ -26,10 +26,15 @@ def bulk_insert(endpoint: str, payload: Dict[str, any]) -> requests.Response:
                 headers={"Content-Type": "application/json"},
                 timeout=10,
             )
+            if not response.ok:
+                LOGGER.error("Bad response while inserting the payload %s,\n %s", payload, response.json())
+                return None
+
+            LOGGER.info(f"Bulk inserted %s", payload)
             return response
         except Exception as e:
             if attempt == ATTEMPTS - 1:
-                LOGGER.error("Failed to bulk insert at PRIVATE_API endpoint after %s attempts", ATTEMPTS)
+                LOGGER.error("Failed to bulk insert at PRIVATE_API endpoint after %s attempts: %s", ATTEMPTS, e)
                 return None
 
 def bulk_insert_series(series_dict: Dict[str, any]) -> requests.Response:

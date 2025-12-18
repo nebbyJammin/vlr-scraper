@@ -254,17 +254,15 @@ class VLRScraper:
         date_start = scrape_match_date(match_card, match_id)
         team_1_id, team_2_id = scrape_match_dependent_teams(match_card, match_id)
         
+        vods = []
+        streams = []
         vods_container = soup.select_one(f"div.match-vods")
         if vods_container:
             vods = scrape_match_vods(vods_container)
-        else:
-            vods = []
 
         streams_container = soup.select_one(f"div.match-streams")
         if streams_container:
             streams = scrape_match_streams(streams_container)
-        else:
-            vods = []
 
         return VLRMatch(
             vlr_id=match_id,
@@ -278,9 +276,9 @@ class VLRScraper:
             team_2_id=team_2_id,
             score_1=score_1,
             score_2=score_2,
+            vods=vods,
+            streams=streams,
             date_scraped=datetime.now(timezone.utc),
-            vods=None,
-            streams=None
         )
 
     def scrape_team(self, team_id: int) -> VLRTeam | None:
@@ -345,7 +343,7 @@ class VLRScraper:
         while consecutive_failures < MAXIMUM_CONSECUTIVE_FAILURES \
             and (not series_max or curr_series_id <= series_max):
 
-            if curr_series_id not in already_seen_series:
+            if not already_seen_series or curr_series_id not in already_seen_series:
                 url = urljoin(BASE_URL, f"series/{curr_series_id}")
                 LOGGER.info("Probing %s", url)
                 for attempt in range(ATTEMPTS):
@@ -411,6 +409,6 @@ class VLRScraper:
                     front_page_events.append(event_id)
 
             if not success:
-                LOGGER.warning("Potentially missed an event -> Couldn't find the id from event a tag.")
+                LOGGER.error("Potentially missed an event -> Couldn't find the id from event a tag. Href was %s", href)
         
         return front_page_events

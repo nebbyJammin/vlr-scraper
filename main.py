@@ -173,7 +173,7 @@ if __name__ == "__main__":
         SCHEDULING_CONTEXT["bulk_insert"] = True
         SCHEDULING_CONTEXT["probe_series"] = False
         SCHEDULING_CONTEXT["probe_events"] = False
-        discover_series(SCRAPER, SCRAPE_SCHEDULER, args.build_series)
+        discover_series(SCRAPER, SCRAPE_SCHEDULER, args.build_series, True)
 
         register_background_tasks()
     elif args.build_events:
@@ -202,7 +202,7 @@ if __name__ == "__main__":
                     continue
 
                 match args[0]:
-                    case "help":
+                    case "help" | "h":
                         print(
                         "Here are a list of commands you can run:\n" +\
                         "    help             - gives a list of commands.\n" +\
@@ -220,7 +220,7 @@ if __name__ == "__main__":
 
                         if len(args) > 1:
                             match args[1]:
-                                case "help":
+                                case "help" | "h":
                                     print(scheduler_help_msg, end="")
                                 case "qsize" | "size":
                                     qsize, consumed_qsize = SCRAPE_SCHEDULER.get_true_qsize()

@@ -8,6 +8,8 @@ services:
     container_name: vlrscraper
     networks:
       - vlr_scraper_net
+    volumes:
+      - ./.ssh:/root/.ssh:ro
     ports:
       - "8000:8000"
     env_file:

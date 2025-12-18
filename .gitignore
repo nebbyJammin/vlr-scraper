@@ -223,7 +223,7 @@ credentials/
 .ssh/
 
 # Errored Payloads .pkl
-failed_payloads/*.pkl
+failed_payloads/*
 
 # VSCodeCounter
 .VSCodeCounter/

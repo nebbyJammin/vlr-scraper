@@ -191,11 +191,11 @@ def infer_event_from_match(root: Tag | BeautifulSoup | str, match_id: int | None
     return event_id
 
 @soup_cast
-def scrape_match_vods(root: Tag | BeautifulSoup | str, match_id: int | None) -> List[str]:
+def scrape_match_vods(root: Tag | BeautifulSoup | str) -> List[str]:
     links: List[Tag] = root.findAll('a')
-    return [link.get("href", None) for link in links]
+    return [href for link in links if (href := link.get('href')) is not None]
 
 @soup_cast
-def scrape_match_streams(root: Tag | BeautifulSoup | str, match_id: int | None) -> List[str]:
+def scrape_match_streams(root: Tag | BeautifulSoup | str) -> List[str]:
     links: List[Tag] = root.findAll('a')
-    return [link.get("href", None) for link in links]
+    return [href for link in links if (href := link.get('href')) is not None]

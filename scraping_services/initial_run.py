@@ -7,15 +7,11 @@ from scraper.scraper_utils import VLRScraperOptions
 from private_api_utils.discover import get_known_series, get_unknown_events, get_unknown_events_diff
 from logging_config import MAIN_LOGGER as LOGGER
 
-def do_initial_run(SCRAPER: VLRScraper, SCRAPE_SCHEDULER: ScrapeScheduler, series_upper: int | None = None):
-    """An alias for `discover_series()`"""
-    discover_series(SCRAPER, SCRAPE_SCHEDULER, series_upper)
-
-def discover_series(SCRAPER: VLRScraper, SCRAPE_SCHEDULER: ScrapeScheduler, series_upper: int | None = None):
+def discover_series(SCRAPER: VLRScraper, SCRAPE_SCHEDULER: ScrapeScheduler, series_upper: int | None = None, ignore_seen: bool = False):
     """Enqueues any series that has not yet been discovered to the Scrape Scheduler. 
     Requires the private api to be available."""
     already_seen_series: List[int] | None = get_known_series()
-    new_series: List[int] | None = SCRAPER.discover_series(already_seen_series, series_upper)
+    new_series: List[int] | None = SCRAPER.discover_series(already_seen_series, series_upper) if not ignore_seen else SCRAPER.discover_series(None, series_upper)
 
     # Recursively scrape all series that have just been discovered/probed.
     for series_id in new_series:
@@ -33,7 +29,10 @@ def discover_front_page_events(SCRAPER: VLRScraper, SCRAPE_SCHEDULER: ScrapeSche
     This is important to discover events with no parent series. 
     Requires the private api to be available."""
     front_page_event_ids: List[int] = SCRAPER.discover_front_page_event_ids()
-    new_event_ids = get_unknown_events_diff(front_page_event_ids)
+    events_diff = get_unknown_events_diff(front_page_event_ids)
+    # events_diff only gives the missing events up until the highest event_id
+    # We need to also just add any front page event ids > curr highest event id
+    new_event_ids = events_diff + [id for id in front_page_event_ids if id > (max(events_diff) if events_diff else 0)]
 
     if new_event_ids:
         for event_id in new_event_ids:

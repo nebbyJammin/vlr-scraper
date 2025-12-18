@@ -249,16 +249,16 @@ class ScrapeScheduler():
             # Immediately scrape the dependent teams -> match has a foreign key for team id that needs to be scraped (IRRESPECTIVE OF task.recursive)
 
             # ! It's okay not to use the lock here since the only time we get a false positive is if we have scraped the team previously -> cleared the batch -> inserted batch into db while this method is running
-            if match:
-                if match.team_1_id and match.team_1_id not in self._result_store.get_seen_team_ids():
-                    team_1 = self._scraper.scrape_team(match.team_1_id)
-                if match.team_2_id and match.team_2_id not in self._result_store.get_seen_team_ids():
-                    team_2 = self._scraper.scrape_team(match.team_2_id)
-            
-                # Append results at the same time to ensure thread safety
-                self._append_result(match, team_1, team_2)
+            if match.team_1_id and match.team_1_id not in self._result_store.get_seen_team_ids():
+                team_1 = self._scraper.scrape_team(match.team_1_id)
+            if match.team_2_id and match.team_2_id not in self._result_store.get_seen_team_ids():
+                team_2 = self._scraper.scrape_team(match.team_2_id)
+        
+            # Append results at the same time to ensure thread safety
+            self._append_result(match, team_1, team_2)
             return True
         else:
+            LOGGER.warning("Match page unexpected format for id %s", id)
             return False
         
     

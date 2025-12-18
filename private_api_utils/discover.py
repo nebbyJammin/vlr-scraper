@@ -79,4 +79,4 @@ def get_unknown_events_diff(event_ids_to_diff: List[int]) -> List[int] | None:
         LOGGER.error("Private API returned bad response %s when attempting to get unknown events at %s", response.status_code, url)
         return None
 
-    return response.json()["id"]
+    return [] if not response.json()["id"] else response.json()["id"]

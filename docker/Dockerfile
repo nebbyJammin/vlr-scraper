@@ -23,14 +23,11 @@ RUN apt-get update && apt-get install -y \
     netcat-openbsd \
     && rm -rf /var/lib/apt/lists/*
 
-# Copy ssh keys (for prod or mount via volume in dev)
-COPY .ssh/id_ed25519 /root/.ssh/id_ed25519
-COPY .ssh/known_hosts /root/.ssh/known_hosts
+# May need to uncomment in the future
+# RUN dos2unix /root/.ssh/id_ed25519
+# RUN chmod 600 /root/.ssh/id_ed25519
 
-RUN dos2unix /root/.ssh/id_ed25519
-RUN chmod 600 /root/.ssh/id_ed25519
-
-RUN chmod 700 /root/.ssh
+# RUN chmod 700 /root/.ssh
 
 COPY start.sh /app/start.sh
 RUN chmod +x /app/start.sh
