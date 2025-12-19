@@ -1,5 +1,12 @@
 services:
   app:
     command: /app/start.sh
+    networks:
+      - vlrgg_net
     env_file:
       - prod.env
+
+networks:
+  vlrgg_net:
+    name: vlrgg_net
+    external: true

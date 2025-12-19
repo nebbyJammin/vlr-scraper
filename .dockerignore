@@ -4,10 +4,22 @@ __pycache__/
 *.pyd
 *.db
 *.sqlite3
-.env
+*.env*
 .git
 .dockerignore
+
+docker-compose.*
+docker-up-build-events.*
+docker-up-build-series.*
+docker-up.*
+LICENSE
+README.md
 Dockerfile
 
 # Log
 *.log
+logs/
+
+# ssh
+.ssh
+.venv
