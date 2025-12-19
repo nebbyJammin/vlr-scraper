@@ -1,6 +1,8 @@
 from datetime import date, datetime, timedelta, timezone
+import os
 import re
 from typing import List
+import zoneinfo
 
 from bs4 import BeautifulSoup, Tag
 from bs4.element import NavigableString
@@ -132,8 +134,12 @@ def scrape_match_date(root: Tag | BeautifulSoup | str, match_id: int | None) -> 
                 return None
 
             try:
-                VLR_UTC_OFFSET = timedelta(hours=4) # vlr page gives time meta data in UTC-4
-                date_start = datetime.strptime(date_start_str, "%Y-%m-%d %H:%M:%S").replace(tzinfo=timezone.utc) + VLR_UTC_OFFSET # add 4 hours to properly convert to UTC time
+                # VLR_UTC_OFFSET = timedelta(hours=4) # vlr page gives time meta data in UTC-4
+                # date_start = (datetime.strptime(date_start_str, "%Y-%m-%d %H:%M:%S") + VLR_UTC_OFFSET).replace(tzinfo=timezone.utc) # add 4 hours to properly convert to UTC time
+                dt = datetime.strptime(date_start_str, "%Y-%m-%d %H:%M:%S").replace(tzinfo=zoneinfo.ZoneInfo('America/New_York'))
+                dt_utc = dt.astimezone(zoneinfo.ZoneInfo("UTC")) # re-interpret as UTC
+
+                date_start = dt_utc
             except Exception as e:
                 LOGGER.error(f"Failed to parse '{date_start_str}' as a datetime object for match id '{match_id}'", exc_info=True)
                 date_start = None

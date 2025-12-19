@@ -39,17 +39,8 @@ SCHEDULING_CONTEXT: Dict[str, bool] = {
 def initialise_scraper():
     global SCRAPER, SCRAPE_SCHEDULER
 
-    vlr_utc_offset_str = os.getenv("VLR_UTC_OFFSET", 4)
-    vlr_utc_offset: int = 4
-
-    try:
-        vlr_utc_offset = int(vlr_utc_offset_str)
-    except (ValueError, TypeError) as e:
-        vlr_utc_offset = 4
-
     SCRAPER_OPTIONS = VLRScraperOptions(
         local_tz=os.getenv("LOCAL_TIME_ZONE", "UTC"),
-        vlr_utc_offset=timedelta(hours=vlr_utc_offset)
     )
 
     SCRAPER = VLRScraper(SCRAPER_OPTIONS)

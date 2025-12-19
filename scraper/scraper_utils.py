@@ -12,7 +12,6 @@ class VLRScraperOptions:
     """The options used by the VLRScraper class"""
     timeout: int = 10
     local_tz: str = "UTC"
-    vlr_utc_offset: timedelta = timedelta(hours=4)
 
 class VLRScraperMode(Enum):
     """The different modes that the VLRScraper can use. Each mode usually represents a different entity."""

@@ -16,8 +16,9 @@ def vlr_result_list_to_dict(list: List[VLRResult]) -> List[Dict[str, any]]:
 def serializer(o):
     """Serializes an object `o` in a format which can be handled by Postgres, which is the default database used in this application."""
     if isinstance(o, datetime):
-        if o.tzinfo is not None:
-            o = o.replace(tzinfo=None) # TZ INFO not stored in DB
+        # Note: TZ Info is now stored in the DB
+        # if o.tzinfo is not None:
+        #     o = o.replace(tzinfo=None) # TZ INFO not stored in DB
             
         return o.isoformat()
 

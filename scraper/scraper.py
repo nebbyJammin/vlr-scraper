@@ -29,7 +29,6 @@ class VLRScraper:
 
         self.timeout = options.timeout
         self.local_tz = options.local_tz
-        self.vlr_utc_offset = options.vlr_utc_offset
 
         LOGGER.info("Scraper has been successfully created!")
         pass

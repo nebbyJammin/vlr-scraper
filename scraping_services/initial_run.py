@@ -29,10 +29,9 @@ def discover_front_page_events(SCRAPER: VLRScraper, SCRAPE_SCHEDULER: ScrapeSche
     This is important to discover events with no parent series. 
     Requires the private api to be available."""
     front_page_event_ids: List[int] = SCRAPER.discover_front_page_event_ids()
-    events_diff = get_unknown_events_diff(front_page_event_ids)
-    # events_diff only gives the missing events up until the highest event_id
-    # We need to also just add any front page event ids > curr highest event id
-    new_event_ids = events_diff + [id for id in front_page_event_ids if id > (max(events_diff) if events_diff else 0)]
+    new_event_ids = get_unknown_events_diff(front_page_event_ids)
+
+    LOGGER.info("Discovering front page events: %s", new_event_ids)
 
     if new_event_ids:
         for event_id in new_event_ids:
@@ -53,7 +52,7 @@ def discover_lone_events(SCRAPER: VLRScraper, SCRAPE_SCHEDULER: ScrapeScheduler)
     """
     unknown_events: List[int] | None = get_unknown_events()
 
-    LOGGER.debug(unknown_events)
+    LOGGER.info('Discovering lone events: %s', unknown_events)
 
     # Recursively scrape all events that have no parent series.
     if unknown_events:
