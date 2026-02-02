@@ -23,7 +23,7 @@ def unpack_tasks(scraper_tasks: List[ScraperTask], response: requests.Response):
                     'id': match_json["event_id"],
                     'priority': match_json.get("priority", 0)
                 },
-                recursive=False,
+                recursive=True,
             ) for match_json in data["match"]
         ])
 
@@ -36,7 +36,7 @@ def unpack_tasks(scraper_tasks: List[ScraperTask], response: requests.Response):
                     "id": event_json["series_id"],
                     'priority': event_json.get("priority", 0)
                 },
-                recursive=False,
+                recursive=True,
             ) for event_json in data["event"]
         ])
 
@@ -48,7 +48,7 @@ def unpack_tasks(scraper_tasks: List[ScraperTask], response: requests.Response):
                 context={
                     'priority': series_json.get("priority", 0)
                 },
-                recursive=False,
+                recursive=True,
             ) for series_json in data["series"]
         ])
     
