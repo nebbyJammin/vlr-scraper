@@ -7,11 +7,11 @@ from scraper.scraper_utils import VLRScraperOptions
 from private_api_utils.discover import get_known_series, get_unknown_events, get_unknown_events_diff
 from logging_config import MAIN_LOGGER as LOGGER
 
-def discover_series(SCRAPER: VLRScraper, SCRAPE_SCHEDULER: ScrapeScheduler, series_upper: int | None = None, ignore_seen: bool = False):
+def discover_series(SCRAPER: VLRScraper, SCRAPE_SCHEDULER: ScrapeScheduler, series_lower: int = 0, series_upper: int | None = None, ignore_seen: bool = False):
     """Enqueues any series that has not yet been discovered to the Scrape Scheduler. 
     Requires the private api to be available."""
     already_seen_series: List[int] | None = get_known_series()
-    new_series: List[int] | None = SCRAPER.discover_series(already_seen_series, series_upper) if not ignore_seen else SCRAPER.discover_series(None, series_upper)
+    new_series: List[int] | None = SCRAPER.discover_series(already_seen_series, series_lower, series_upper) if not ignore_seen else SCRAPER.discover_series(None, series_lower, series_upper)
 
     # Recursively scrape all series that have just been discovered/probed.
     for series_id in new_series:

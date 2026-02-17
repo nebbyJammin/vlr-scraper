@@ -323,7 +323,7 @@ class VLRScraper:
             date_scraped=datetime.now(timezone.utc),
         )
 
-    def discover_series(self, already_seen_series: List[int] | None, series_max: int | None) -> List[int]:
+    def discover_series(self, already_seen_series: List[int] | None, series_lower: int = 1, series_max: int | None = None) -> List[int]:
         """
         Takes a list of already seen series ids `already_seen_series` and an upper bound (inclusive) for the search space `series_max`.
         Will keep searching up for series ids until `series_max` if defined, OR until 10 invalid series ids in a row.
@@ -336,7 +336,7 @@ class VLRScraper:
         consecutive_failures = 0
         MAXIMUM_CONSECUTIVE_FAILURES = 10
         ATTEMPTS = 10
-        curr_series_id = 1
+        curr_series_id = series_lower
 
         # Continue until we consecutively fail 10 times AND are below series_max
         while consecutive_failures < MAXIMUM_CONSECUTIVE_FAILURES \

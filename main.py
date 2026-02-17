@@ -54,6 +54,11 @@ def handle_high_priority_tasks():
     if not tasks:
         return
 
+    # Only add to the queue if high priority qsize is below a threshold
+    if qsize := SCRAPE_SCHEDULER.get_consumed_qsize() > 200:
+        LOGGER.info(f"Skipping high priority due to qsize ({qsize})")
+        return
+
     for task in tasks:
         SCRAPE_SCHEDULER.enqueue_task(task, task.context.get("priority", 1))
 
@@ -63,6 +68,10 @@ def handle_low_priority_tasks():
     tasks = get_low_priority_tasks_routine()
 
     if not tasks:
+        return
+
+    if qsize := SCRAPE_SCHEDULER.get_consumed_qsize() > 30:
+        LOGGER.info(f"Skipping low priority due to qsize ({qsize})")
         return
 
     for task in tasks:
@@ -107,6 +116,8 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="A webscraper for vlr.gg that has a focus on scraping match, team and event data. The webscraper stores scraped data into a postgres database by hitting an external API.")
 
     parser.add_argument("--build-series", nargs="?", type=int, help="Specify a count (>0). The scraper will do an initial run to build the database, by recursively scraping each series->event->match->team, starting from series id = 0, up to the series id entered OR until 10 404 responses are received. If no series id entered, then it will probe until 10 404 responses are received consecutively.", const=100000)
+
+    parser.add_argument("--series-start", nargs="?", type=int, help="Specify upper bound for series.", const=1)
 
     parser.add_argument("--build-events", action="store_true", help="Use this flag to scrape old events with no parent series. ONLY USE THIS FLAG IF YOU HAVE USED --build-series FLAG TO SCRAPE ALL series->event->match->team with a parent series. Will attempt to scrape all events up until max(event_id).")
 
@@ -164,7 +175,10 @@ if __name__ == "__main__":
         SCHEDULING_CONTEXT["bulk_insert"] = True
         SCHEDULING_CONTEXT["probe_series"] = False
         SCHEDULING_CONTEXT["probe_events"] = False
-        discover_series(SCRAPER, SCRAPE_SCHEDULER, args.build_series, True)
+        if not args.series_start:
+            args.series_start = 1
+
+        discover_series(SCRAPER, SCRAPE_SCHEDULER, args.series_start, args.build_series, True)
 
         register_background_tasks()
     elif args.build_events:
