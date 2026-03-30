@@ -29,7 +29,12 @@ def discover_front_page_events(SCRAPER: VLRScraper, SCRAPE_SCHEDULER: ScrapeSche
     This is important to discover events with no parent series. 
     Requires the private api to be available."""
     front_page_event_ids: List[int] = SCRAPER.discover_front_page_event_ids()
-    new_event_ids = get_unknown_events_diff(front_page_event_ids)
+
+    # NOTE: Scraper can sometimes incorrectly be informed by backend that an event is completed
+    # This happens when matches are added later to events, that were previously considered completed
+    # For now, just rescrape entire front page, regardless of whether or not we think we have discovered them
+    #  new_event_ids = get_unknown_events_diff(front_page_event_ids)
+    new_event_ids = front_page_event_ids
 
     LOGGER.info("Discovering front page events: %s", new_event_ids)
 
